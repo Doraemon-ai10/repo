@@ -1,0 +1,1 @@
+Roblox branding is configured through the official Roblox favicon URL in app metadata.
