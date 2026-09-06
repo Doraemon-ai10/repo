@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 async function roblox(url: string, init?: RequestInit) {
-  const r = await fetch(url, { ...init, cache: 'no-store', headers: { 'User-Agent': 'RBLX-Server-Finder/5.0', ...(init?.headers || {}) } });
+  const r = await fetch(url, {
+    ...init,
+    cache: 'no-store',
+    headers: { 'User-Agent': 'RBLX-Server-Finder/6.0', ...(init?.headers || {}) },
+  });
   const text = await r.text();
   let data: any = {};
   try { data = JSON.parse(text); } catch { data = { message: text || 'Roblox API returned an invalid response' }; }
@@ -16,12 +20,21 @@ function normalizeSearch(raw: any) {
     if (!v || typeof v !== 'object') return;
     if (Array.isArray(v)) { v.forEach(walk); return; }
     const universeId = Number(v.universeId ?? v.universeID ?? v.id);
-    const rootPlaceId = Number(v.rootPlaceId ?? v.placeId ?? v.rootPlaceID);
+    const rootPlaceId = Number(v.rootPlaceId ?? v.rootPlaceID ?? v.universeRootPlaceId ?? v.placeId);
     const name = typeof v.name === 'string' ? v.name : '';
     if (Number.isInteger(universeId) && universeId > 0 && Number.isInteger(rootPlaceId) && rootPlaceId > 0 && name) {
       if (!seen.has(universeId)) {
         seen.add(universeId);
-        out.push({ universeId, rootPlaceId, name, description: v.description, playing: Number(v.playing ?? v.playerCount ?? 0) || 0, visits: Number(v.visits ?? 0) || 0, maxPlayers: Number(v.maxPlayers ?? 0) || undefined, creator: v.creator ?? (v.creatorName ? { name: v.creatorName } : undefined) });
+        out.push({
+          universeId,
+          rootPlaceId,
+          name,
+          description: v.description,
+          playing: Number(v.playing ?? v.playerCount ?? 0) || 0,
+          visits: Number(v.visits ?? 0) || 0,
+          maxPlayers: Number(v.maxPlayers ?? 0) || undefined,
+          creator: v.creator ?? (v.creatorName ? { name: v.creatorName } : undefined),
+        });
       }
     }
     Object.values(v).forEach(walk);
@@ -34,16 +47,23 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const action = body?.action;
+
     if (action === 'username') {
       const username = String(body.username || '').trim();
       if (!username || username.length > 20) return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
-      return NextResponse.json(await roblox('https://users.roblox.com/v1/usernames/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }) }));
+      return NextResponse.json(await roblox('https://users.roblox.com/v1/usernames/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+      }));
     }
+
     if (action === 'avatar') {
       const id = Number(body.userId);
       if (!Number.isInteger(id)) return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
       return NextResponse.json(await roblox(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=150x150&format=Png&isCircular=true`));
     }
+
     if (action === 'games') {
       const q = String(body.query || '').trim();
       if (!q) return NextResponse.json({ data: [] });
@@ -51,21 +71,51 @@ export async function POST(req: NextRequest) {
       const raw = await roblox(`https://apis.roblox.com/search-api/omni-search?searchQuery=${encodeURIComponent(q)}&sessionId=${sessionId}&pageType=all`);
       return NextResponse.json({ data: normalizeSearch(raw) });
     }
+
+    if (action === 'thumbs') {
+      const ids = Array.isArray(body.universeIds)
+        ? body.universeIds.map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 50)
+        : [];
+      if (!ids.length) return NextResponse.json({ data: [] });
+      const url = `https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=${ids.join(',')}&countPerUniverse=1&defaults=true&size=768x432&format=Webp&isCircular=false`;
+      return NextResponse.json(await roblox(url));
+    }
+
     if (action === 'details') {
       const id = Number(body.universeId);
       if (!Number.isInteger(id)) return NextResponse.json({ error: 'Invalid universeId' }, { status: 400 });
       return NextResponse.json(await roblox(`https://games.roblox.com/v1/games?universeIds=${id}`));
     }
+
     if (action === 'private') {
       const id = Number(body.universeId);
       if (!Number.isInteger(id)) return NextResponse.json({ error: 'Invalid universeId' }, { status: 400 });
       return NextResponse.json(await roblox(`https://games.roblox.com/v1/private-servers/enabled-in-universe/${id}`));
     }
+
     if (action === 'servers') {
       const placeId = Number(body.placeId);
       if (!Number.isInteger(placeId)) return NextResponse.json({ error: 'Invalid placeId' }, { status: 400 });
-      return NextResponse.json(await roblox(`https://games.roblox.com/v1/games/${placeId}/servers/Public?sortOrder=2&excludeFullGames=true&limit=100`));
+
+      // Ask Roblox for ascending population first. The old implementation used
+      // descending order, which made “Ít người nhất” show crowded servers.
+      let cursor = '';
+      const all: any[] = [];
+      const seen = new Set<string>();
+      for (let page = 0; page < 3; page++) {
+        const params = new URLSearchParams({ sortOrder: '1', excludeFullGames: 'true', limit: '100' });
+        if (cursor) params.set('cursor', cursor);
+        const data = await roblox(`https://games.roblox.com/v1/games/${placeId}/servers/Public?${params.toString()}`);
+        for (const s of data?.data || []) {
+          if (s?.id && !seen.has(s.id)) { seen.add(s.id); all.push(s); }
+        }
+        cursor = data?.nextPageCursor || '';
+        if (!cursor) break;
+      }
+      all.sort((a, b) => Number(a.playing || 0) - Number(b.playing || 0));
+      return NextResponse.json({ data: all.slice(0, 250) });
     }
+
     throw new Error('Unknown action');
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Roblox API request failed' }, { status: 502 });
