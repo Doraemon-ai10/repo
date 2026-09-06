@@ -2,182 +2,47 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-type U = { id: number; name: string; displayName: string; avatar?: string };
-type G = {
-  universeId: number; rootPlaceId: number; name: string; playing?: number; visits?: number;
-  favorites?: number; description?: string; created?: string; updated?: string;
-  maxPlayers?: number; genre?: string; creator?: { name?: string };
-};
-type S = { id: string; maxPlayers: number; playing: number };
+type User={id:number;name:string;displayName:string;avatar?:string};
+type Game={universeId:number;rootPlaceId:number;name:string;playing?:number;visits?:number;favorites?:number;description?:string;created?:string;updated?:string;maxPlayers?:number;genre?:string;creator?:{name?:string}};
+type Server={id:string;maxPlayers:number;playing:number};
+type Tab='home'|'games'|'servers'|'about'|'donate';
+const ROBLOX='https://www.roblox.com';
+async function api(action:string,x:Record<string,unknown>={}){const r=await fetch('/api/roblox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...x})});const d=await r.json();if(!r.ok)throw Error(d?.error||'error');return d}
+const avatar=(id:number)=>`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=420x420&format=Png&isCircular=true`;
+const fallback=(g:Game)=>`https://www.roblox.com/asset-thumbnail/image?assetId=${g.rootPlaceId}&width=768&height=432&format=png`;
+const fmt=(n?:number)=>Number(n||0).toLocaleString('vi-VN');
 
-const R = 'https://www.roblox.com';
-
-async function api(action: string, x: Record<string, unknown> = {}) {
-  const r = await fetch('/api/roblox', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...x }),
-  });
-  const d = await r.json();
-  if (!r.ok) throw Error(d?.error || 'API error');
-  return d;
+export default function Home(){
+ const [tab,setTab]=useState<Tab>('home'),[name,setName]=useState(''),[user,setUser]=useState<User|null>(null),[pending,setPending]=useState<User|null>(null);
+ const [q,setQ]=useState(''),[games,setGames]=useState<Game[]>([]),[game,setGame]=useState<Game|null>(null),[detail,setDetail]=useState<Game|null>(null),[servers,setServers]=useState<Server[]>([]),[thumbs,setThumbs]=useState<Record<number,string>>({});
+ const [privateEnabled,setPrivateEnabled]=useState<boolean|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[target,setTarget]=useState<Server|null>(null),[sort,setSort]=useState<'few'|'space'>('few'),[limit,setLimit]=useState('all');
+ function nav(t:Tab){history.pushState({},'',t==='home'?'/':`/${t}`);setTab(t);scrollTo({top:0,behavior:'smooth'})}
+ useEffect(()=>{const sync=()=>{const p=location.pathname.split('/')[1] as Tab;setTab(['games','servers','about','donate'].includes(p)?p:'home')};sync();addEventListener('popstate',sync);return()=>removeEventListener('popstate',sync)},[]);
+ useEffect(()=>{const n=localStorage.getItem('rblx_username');if(!n)return;setName(n);api('username',{username:n}).then(async d=>{const u=d?.data?.[0];if(!u)return;try{const a=await api('avatar',{userId:u.id});setUser({...u,avatar:a?.data?.[0]?.imageUrl})}catch{setUser(u)}}).catch(()=>{})},[]);
+ async function checkUsername(){if(!name.trim())return;setBusy(true);setError('');try{const d=await api('username',{username:name.trim()});const u=d?.data?.[0];if(!u)throw Error();let a='';try{const x=await api('avatar',{userId:u.id});a=x?.data?.[0]?.imageUrl||''}catch{}setPending({...u,avatar:a})}catch{setError('Không tìm thấy username. Hãy kiểm tra lại.')}finally{setBusy(false)}}
+ function confirmUser(){if(!pending)return;setUser(pending);setName(pending.name);localStorage.setItem('rblx_username',pending.name);setPending(null)}
+ async function thumbs(list:Game[]){if(!list.length)return;try{const d=await api('thumbs',{universeIds:list.map(g=>g.universeId)});const n:Record<number,string>={};for(const x of d?.data||[]){const u=x?.thumbnails?.find((z:any)=>z?.imageUrl)?.imageUrl;if(u)n[Number(x.universeId)]=u}setThumbs(v=>({...v,...n}))}catch{}}
+ async function search(term=q){if(!term.trim())return;nav('games');setBusy(true);setError('');try{const d=await api('games',{query:term.trim()});const list=Array.isArray(d?.data)?d.data:[];setGames(list);await thumbs(list);if(!list.length)setError(`Không tìm thấy game với “${term.trim()}”.`)}catch{setError('Không thể tìm game lúc này. Thử lại sau ít giây.')}finally{setBusy(false)}}
+ async function openGame(g:Game){setGame(g);setDetail(null);setServers([]);setPrivateEnabled(null);nav('servers');setBusy(true);setError('');thumbs([g]);try{const [d,p,s]=await Promise.all([api('details',{universeId:g.universeId}),api('private',{universeId:g.universeId}),api('servers',{placeId:g.rootPlaceId})]);setDetail(d?.data?.[0]||g);setPrivateEnabled(Boolean(p));setServers(s?.data||[])}catch{setError('Chưa tải đủ dữ liệu game/server. Hãy làm mới.')}finally{setBusy(false)}}
+ const shown=useMemo(()=>[...servers].filter(s=>limit==='all'||s.playing<=Number(limit)).sort((a,b)=>sort==='few'?a.playing-b.playing:(b.maxPlayers-b.playing)-(a.maxPlayers-a.playing)),[servers,limit,sort]);
+ const image=(g:Game)=>thumbs[g.universeId]||fallback(g);
+ function launch(kind:'vng'|'global'){if(!game||!target)return;const pkg=kind==='vng'?'com.roblox.client.vnggames':'com.roblox.client';location.href=`intent://placeId=${game.rootPlaceId}&gameInstanceId=${encodeURIComponent(target.id)}#Intent;scheme=roblox;package=${pkg};end`;setTimeout(()=>location.href=`${ROBLOX}/games/start?placeId=${game.rootPlaceId}&gameInstanceId=${encodeURIComponent(target.id)}`,1200);setTarget(null)}
+ return <main className="site">
+  <header className="topbar"><button className="logo" onClick={()=>nav('home')}><span className="logoMark">R</span><span><b>RBLX</b><i>Finder</i><small>SERVER FINDER</small></span></button><nav>{[['home','Trang chủ'],['games','Tìm game'],['servers','Server'],['about','Giới thiệu'],['donate','Donate']].map(([k,v])=><button key={k} className={tab===k?'active':''} onClick={()=>nav(k as Tab)}>{v}</button>)}</nav><div className="online"><i/> Online</div></header>
+  {tab==='home'&&<><section className="hero2"><div className="heroBadge">⚡ RBLXFINDER</div><h1>Tìm đúng server.<br/><span>Vào game nhanh hơn.</span></h1><p>Nhập username Roblox, chọn game và tìm server ít người chỉ trong vài giây.</p><div className="heroActions"><button className="primary big" onClick={()=>document.getElementById('username')?.scrollIntoView({behavior:'smooth'})}>🚀 Bắt đầu ngay</button><button className="ghost big" onClick={()=>nav('about')}>Cách hoạt động →</button></div></section>
+   <section id="username" className="panel loginPanel"><div className="panelIcon">👤</div><div className="panelText"><span className="eyebrow">BƯỚC 01</span><h2>Tiếp tục với Username Roblox</h2><p>Chỉ nhập username công khai. Không cần mật khẩu, cookie hay token.</p></div><div className="inputLine"><input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&checkUsername()} placeholder="Nhập username Roblox"/><button className="primary" onClick={checkUsername}>{busy?'Đang kiểm tra…':'Tiếp tục →'}</button></div>{user&&<div className="verified"><img src={user.avatar||avatar(user.id)}/><div><b>✓ Đã xác nhận</b><strong>{user.displayName}</strong><span>@{user.name}</span></div><button onClick={()=>{localStorage.removeItem('rblx_username');setUser(null);setName('')}}>Đổi</button></div>}</section>
+   <section className="how"><span className="eyebrow">ĐƠN GIẢN 3 BƯỚC</span><h2>Không vòng vo.</h2><div className="steps"><div><b>01</b><span>👤</span><h3>Xác nhận username</h3><p>Tìm tài khoản Roblox công khai rồi xác nhận đúng người.</p></div><div><b>02</b><span>🎮</span><h3>Chọn game</h3><p>Xem thumbnail, người chơi và thông tin game.</p></div><div><b>03</b><span>🚀</span><h3>Chọn server</h3><p>Lọc server ít người và mở đúng server đã chọn.</p></div></div></section>
+  </>}
+  {tab==='games'&&<section className="page"><div className="pageHead"><div><span className="eyebrow">ROBLOX DISCOVERY</span><h1>Tìm game</h1><p>Tìm game Roblox với thumbnail thật và thông tin trực tiếp.</p></div></div><div className="searchBox"><span>⌕</span><input autoFocus value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()} placeholder="Brookhaven, Blox Fruits, Grow a Garden…"/><button className="primary" onClick={()=>search()}>{busy?'Đang tìm…':'Tìm game'}</button></div><div className="chips"><button onClick={()=>{setQ('Brookhaven');search('Brookhaven')}}>Brookhaven</button><button onClick={()=>{setQ('Blox Fruits');search('Blox Fruits')}}>Blox Fruits</button><button onClick={()=>{setQ('Grow a Garden');search('Grow a Garden')}}>Grow a Garden</button></div>{error&&<div className="error">⚠️ {error}</div>}{games.length>0&&<><div className="sectionTitle"><h2>{games.length} game</h2><span>Kết quả</span></div><GameGrid games={games} image={image} onOpen={openGame}/></>}{!games.length&&!busy&&<div className="empty"><span>🎮</span><h3>Tìm một game để bắt đầu</h3><p>Thumbnail game sẽ hiện ngay sau khi tìm thấy.</p></div>}</section>}
+  {tab==='servers'&&<section className="page">{!game?<div className="empty"><span>🚀</span><h3>Chưa chọn game</h3><p>Hãy chọn game trước rồi quay lại đây.</p><button className="primary" onClick={()=>nav('games')}>Tìm game →</button></div>:<><button className="backBtn" onClick={()=>nav('games')}>← Chọn game khác</button>{busy&&!detail?<div className="loading panel"><div className="spinner">◌</div><h3>Đang quét server</h3><p>Đang lấy các server đang hoạt động…</p></div>:<><div className="gameHero panel"><img src={image(game)}/><div><span className="eyebrow">GAME ĐANG CHỌN</span><h1>{detail?.name||game.name}</h1><p>{detail?.creator?.name?`Bởi ${detail.creator.name}`:'Roblox Experience'}</p></div></div><div className="statGrid"><Stat n={fmt(detail?.playing)} t="Đang chơi"/><Stat n={fmt(detail?.visits)} t="Lượt chơi"/><Stat n={fmt(detail?.favorites)} t="Yêu thích"/><Stat n={fmt(detail?.maxPlayers)} t="Max / server"/></div>{detail?.description&&<div className="description panel"><span className="eyebrow">GIỚI THIỆU GAME</span><p>{detail.description}</p><div className="meta">{detail.genre&&<span>🎮 {detail.genre}</span>}{detail.created&&<span>📅 {new Date(detail.created).toLocaleDateString('vi-VN')}</span>}</div></div>}<div className="private panel"><div><b>🔐 Private Server</b><span>{privateEnabled?'Game hỗ trợ Private Server.':'Game không bật Private Server.'}</span></div><button className="ghost" onClick={()=>window.open(`${ROBLOX}/games/${game.rootPlaceId}`,'_blank')}>Mở Roblox ↗</button></div><div className="serverToolbar panel"><div><span className="eyebrow">SERVER BROWSER</span><h2>Server công khai</h2><small>Đã ưu tiên server ít người</small></div><select value={sort} onChange={e=>setSort(e.target.value as any)}><option value="few">Ít người nhất</option><option value="space">Nhiều chỗ trống nhất</option></select><select value={limit} onChange={e=>setLimit(e.target.value)}><option value="all">Tất cả</option><option value="5">≤ 5 người</option><option value="10">≤ 10 người</option><option value="20">≤ 20 người</option></select><button className="refreshBtn" onClick={()=>openGame(game)}>↻ Làm mới</button></div>{shown.length?<div className="serverCards">{shown.map((s,i)=><ServerCard key={s.id} s={s} i={i} onJoin={()=>setTarget(s)}/>)}</div>:<div className="empty smallEmpty"><span>🔎</span><h3>Không có server phù hợp</h3><p>Thử bỏ bộ lọc hoặc làm mới.</p></div>}</>}</>}</section>}
+  {tab==='about'&&<section className="page aboutPage"><div className="aboutHero"><div className="heroBadge">ABOUT RBLXFINDER</div><h1>Được tạo để<br/><span>tìm server dễ hơn.</span></h1><p>RBLXFinder giúp người chơi Roblox tìm game, xem thông tin và lọc server công khai nhanh chóng.</p></div><div className="aboutGrid"><Feature icon="🎯" title="Tìm đúng server" text="Ưu tiên server có ít người hoặc nhiều chỗ trống."/><Feature icon="🖼️" title="Thumbnail thật" text="Game được hiển thị bằng hình ảnh từ Roblox."/><Feature icon="📱" title="Tối ưu mobile" text="Thiết kế responsive và hỗ trợ Roblox VN / Global."/><Feature icon="🔒" title="Không cần mật khẩu" text="Chỉ xử lý thông tin công khai của Roblox."/></div><div className="creator panel"><span className="eyebrow">NGƯỜI TẠO WEBSITE</span><div className="creatorRow"><img src="https://www.roblox.com/headshot-thumbnail/image?userId=11487654266&width=420&height=420&format=png"/><div><h2>khoungbell7777</h2><p>Creator · RBLXFinder</p><button className="primary" onClick={()=>window.open('https://www.roblox.com/users/11487654266/profile','_blank')}>Xem Roblox ↗</button></div></div><div className="followLine"><span>Thích website?</span><button className="follow" onClick={()=>window.open('https://www.roblox.com/users/11487654266/profile','_blank')}>♡ Follow @khoungbell7777</button></div></div></section>}
+  {tab==='donate'&&<section className="page donatePage"><div className="aboutHero"><div className="heroBadge">SUPPORT CREATOR</div><h1>Ủng hộ<br/><span>RBLXFinder.</span></h1><p>Website miễn phí. Nếu thấy hữu ích, bạn có thể ủng hộ creator.</p></div><div className="donateGrid"><div className="donateCard"><div className="donateIcon">🎟️</div><span className="eyebrow">ROBLOX</span><h2>Donate Game Pass</h2><p>Ủng hộ creator qua Game Pass trên Roblox.</p><button className="primary big" onClick={()=>window.open('https://www.roblox.com/users/11487654266/profile','_blank')}>🎟️ Mở Donate Game Pass</button><small>Giao dịch được thực hiện trên Roblox.</small></div><div className="donateCard plusCard"><div className="donateIcon">✦</div><span className="eyebrow">ROBLOX PLUS</span><h2>Roblox Plus</h2><p>Ủng hộ creator nếu bạn đang sử dụng Roblox Plus theo hình thức hỗ trợ phù hợp trên Roblox.</p><button className="ghost big" onClick={()=>window.open('https://www.roblox.com/users/11487654266/profile','_blank')}>✦ Mở Roblox</button><small>RBLXFinder không xử lý thanh toán.</small></div></div><div className="supportNote panel">💜 <div><b>Cảm ơn bạn đã ủng hộ!</b><span>Donate hoàn toàn tự nguyện và không bắt buộc để dùng website.</span></div></div></section>}
+  <footer><b>RBLXFinder</b><span> · Made by khoungbell7777</span><div><button onClick={()=>nav('home')}>Trang chủ</button><button onClick={()=>nav('games')}>Tìm game</button><button onClick={()=>nav('about')}>Giới thiệu</button><button onClick={()=>nav('donate')}>Donate</button></div></footer>
+  {pending&&<div className="modalBackdrop"><div className="modal"><div className="modalTop"><span>✨</span><button onClick={()=>setPending(null)}>×</button></div><h2>Có phải username của bạn?</h2><div className="confirm"><img src={pending.avatar||avatar(pending.id)}/><div><b>{pending.displayName}</b><span>@{pending.name}</span><small>ID {pending.id}</small></div></div><p>Hãy xác nhận trước khi tiếp tục. Không cần mật khẩu hoặc cookie.</p><div className="modalActions"><button className="ghost" onClick={()=>setPending(null)}>Không phải</button><button className="primary" onClick={confirmUser}>✓ Đúng, tiếp tục</button></div></div></div>}
+  {target&&<div className="modalBackdrop"><div className="modal"><div className="modalTop"><span>🚀</span><button onClick={()=>setTarget(null)}>×</button></div><h2>Chọn ứng dụng Roblox</h2><p>Server bạn chọn: <b>{target.playing}/{target.maxPlayers}</b> người.</p><div className="appChoices"><button onClick={()=>launch('vng')}><span>🇻🇳</span><div><b>Roblox VN</b><small>VNG Games</small></div></button><button onClick={()=>launch('global')}><span>🌎</span><div><b>Roblox Global</b><small>Phiên bản quốc tế</small></div></button></div><button className="cancel" onClick={()=>setTarget(null)}>Hủy</button></div></div>}
+ </main>
 }
-
-const fallbackThumb = (g: G) => `https://www.roblox.com/asset-thumbnail/image?assetId=${g.rootPlaceId}&width=768&height=432&format=png`;
-
-export default function Home() {
-  const [name, setName] = useState('');
-  const [pending, setPending] = useState<U | null>(null);
-  const [user, setUser] = useState<U | null>(null);
-  const [q, setQ] = useState('');
-  const [games, setGames] = useState<G[]>([]);
-  const [game, setGame] = useState<G | null>(null);
-  const [detail, setDetail] = useState<G | null>(null);
-  const [servers, setServers] = useState<S[]>([]);
-  const [thumbs, setThumbs] = useState<Record<number, string>>({});
-  const [priv, setPriv] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [target, setTarget] = useState<S | null>(null);
-  const [sort, setSort] = useState('few');
-  const [max, setMax] = useState('all');
-  const [time, setTime] = useState('');
-
-  async function loadThumbs(list: G[]) {
-    if (!list.length) return;
-    try {
-      const d = await api('thumbs', { universeIds: list.map(g => g.universeId) });
-      const next: Record<number, string> = {};
-      for (const item of d?.data || []) {
-        const url = item?.thumbnails?.find((x: any) => x?.imageUrl)?.imageUrl;
-        if (url) next[Number(item.universeId)] = url;
-      }
-      setThumbs(prev => ({ ...prev, ...next }));
-    } catch { /* fallback image remains available */ }
-  }
-
-  useEffect(() => {
-    const n = localStorage.getItem('rblx_username');
-    if (n) {
-      setName(n);
-      api('username', { username: n }).then(async d => {
-        const u = d?.data?.[0];
-        if (!u) return;
-        try {
-          const a = await api('avatar', { userId: u.id });
-          setUser({ ...u, avatar: a?.data?.[0]?.imageUrl || '' });
-        } catch { setUser(u); }
-      }).catch(() => {});
-    }
-  }, []);
-
-  async function username() {
-    if (!name.trim()) return;
-    setBusy(true); setError('');
-    try {
-      const d = await api('username', { username: name.trim() });
-      const u = d?.data?.[0];
-      if (!u) throw Error();
-      let avatar = '';
-      try { const a = await api('avatar', { userId: u.id }); avatar = a?.data?.[0]?.imageUrl || ''; } catch {}
-      setPending({ ...u, avatar });
-    } catch { setError('Không tìm thấy username. Hãy kiểm tra chính tả.'); }
-    finally { setBusy(false); }
-  }
-
-  function confirm() {
-    if (!pending) return;
-    setUser(pending); setName(pending.name); localStorage.setItem('rblx_username', pending.name); setPending(null);
-  }
-
-  async function search() {
-    if (!q.trim()) return;
-    setBusy(true); setError('');
-    try {
-      const d = await api('games', { query: q.trim() });
-      const list: G[] = Array.isArray(d?.data) ? d.data : [];
-      setGames(list);
-      if (!list.length) setError(`Không có game nào khớp “${q.trim()}”. Thử tên game ngắn hơn.`);
-      loadThumbs(list);
-    } catch { setError('Không thể tìm game lúc này. Hãy thử lại sau vài giây.'); }
-    finally { setBusy(false); }
-  }
-
-  async function open(g: G) {
-    setGame(g); setDetail(null); setServers([]); setPriv(null); setBusy(true); setError('');
-    loadThumbs([g]);
-    try {
-      const [d, p, s] = await Promise.all([
-        api('details', { universeId: g.universeId }),
-        api('private', { universeId: g.universeId }),
-        api('servers', { placeId: g.rootPlaceId }),
-      ]);
-      setDetail(d?.data?.[0] || g); setPriv(Boolean(p)); setServers(s?.data || []); setTime(new Date().toLocaleTimeString('vi-VN'));
-    } catch { setError('Game hoặc server chưa tải đủ. Bấm Làm mới để thử lại.'); }
-    finally { setBusy(false); }
-  }
-
-  const shown = useMemo(() => [...servers]
-    .filter(s => max === 'all' || s.playing <= Number(max))
-    .sort((a, b) => sort === 'few'
-      ? a.playing - b.playing
-      : (b.maxPlayers - b.playing) - (a.maxPlayers - a.playing)), [servers, max, sort]);
-
-  function launch(kind: 'vng' | 'global') {
-    if (!game || !target) return;
-    const pkg = kind === 'vng' ? 'com.roblox.client.vnggames' : 'com.roblox.client';
-    const u = `intent://placeId=${game.rootPlaceId}&gameInstanceId=${encodeURIComponent(target.id)}#Intent;scheme=roblox;package=${pkg};end`;
-    window.location.href = u;
-    setTimeout(() => location.href = `${R}/games/start?placeId=${game.rootPlaceId}&gameInstanceId=${encodeURIComponent(target.id)}`, 1200);
-    setTarget(null);
-  }
-
-  const gameImage = (g: G) => thumbs[g.universeId] || fallbackThumb(g);
-
-  return <main className="wrap">
-    <nav className="nav">
-      <div className="brand"><span className="brandIcon">🎮</span><span><b>RBLX</b> Server Finder<small>Smart server browser</small></span></div>
-      <div className="pill"><i /> LIVE API</div>
-    </nav>
-
-    {!game ? <>
-      <section className="hero">
-        <div className="userbox">
-          <div className="userintro"><b>👤 Username Roblox</b><div className="small">Tra cứu công khai · không mật khẩu · không cookie</div></div>
-          <div className="userrow"><input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && username()} placeholder="Nhập username Roblox"/><button className="btn" onClick={username}><span>{busy ? '⏳' : '✨'}</span>{busy ? 'Đang kiểm tra…' : 'Kiểm tra'}</button></div>
-          {user && <div className="userok"><img src={user.avatar || `https://www.roblox.com/headshot-thumbnail/image?userId=${user.id}&width=150&height=150&format=png`} /><div><span>✓ Đã xác nhận</span><b>{user.displayName}</b><small>@{user.name} · ID {user.id}</small></div></div>}
-        </div>
-        <div className="eyebrow">⚡ FIND A BETTER SERVER</div>
-        <h1>Tìm server <em>nhanh hơn.</em></h1>
-        <p>Chọn game → xem thông tin → lọc server ít người → mở <b>đúng server</b> bạn chọn.</p>
-        <div className="search"><span className="searchIcon">⌕</span><input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && search()} placeholder="Tìm game Roblox… ví dụ: Brookhaven, Blox Fruits"/><button className="btn" onClick={search}><span>{busy ? '⏳' : '🔎'}</span>{busy ? 'Đang tìm…' : 'Tìm game'}</button></div>
-        <div className="quick"><span>Gợi ý:</span><button onClick={() => { setQ('Brookhaven'); }}>Brookhaven</button><button onClick={() => { setQ('Blox Fruits'); }}>Blox Fruits</button><button onClick={() => { setQ('Grow a Garden'); }}>Grow a Garden</button></div>
-      </section>
-      {error && <div className="notice danger">⚠️ {error}</div>}
-      <section className="section">
-        <div className="sectionHead"><div><div className="sectionKicker">ROBLOX DISCOVERY</div><h2>🔥 Game</h2></div>{games.length > 0 && <span className="resultCount">{games.length} kết quả</span>}</div>
-        {games.length ? <div className="games">{games.map((g, i) => <button className="card gamecard" style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }} key={g.universeId} onClick={() => open(g)}>
-          <div className="thumbWrap"><img className="thumb" src={gameImage(g)} alt={g.name} loading={i < 4 ? 'eager' : 'lazy'} onError={e => { const el = e.currentTarget; if (!el.src.includes('asset-thumbnail')) el.src = fallbackThumb(g); }} /><span className="playBadge">▶</span></div>
-          <div className="title">{g.name}</div><div className="gameMeta"><span>👥 {(g.playing || 0).toLocaleString()}</span><span>▶ Chơi</span></div>
-        </button>)}</div> : <div className="empty"><div className="emptyIcon">🎮</div><b>Tìm game để bắt đầu</b><span>Ảnh game thật sẽ được tải trực tiếp từ Roblox.</span></div>}
-      </section>
-    </> : <>
-      <button className="back" onClick={() => setGame(null)}>← Chọn game khác</button>
-      {busy && !detail ? <div className="card empty"><span className="spinner">⟳</span><br/>Đang quét server…</div> : <>
-        <div className="card selectedCard">
-          <div className="gamehead"><img src={gameImage(game)} alt={game.name} /><div><div className="sectionKicker">SELECTED EXPERIENCE</div><h2>{detail?.name || game.name}</h2><div className="muted">{detail?.creator?.name ? `Bởi ${detail.creator.name}` : 'Roblox Experience'}</div></div></div>
-          <div className="stats"><div><b>{(detail?.playing || 0).toLocaleString()}</b><span>Đang chơi</span></div><div><b>{(detail?.visits || 0).toLocaleString()}</b><span>Visits</span></div><div><b>{(detail?.favorites || 0).toLocaleString()}</b><span>Yêu thích</span></div><div><b>{detail?.maxPlayers || '—'}</b><span>Max/server</span></div></div>
-          {detail?.description && <p className="description">{detail.description}</p>}
-          <div className="meta">{detail?.genre && <span>🎮 {detail.genre}</span>}{detail?.created && <span>📅 {new Date(detail.created).toLocaleDateString('vi-VN')}</span>}{detail?.updated && <span>🔄 {new Date(detail.updated).toLocaleDateString('vi-VN')}</span>}</div>
-        </div>
-        <div className="notice privateNotice">🔐 <div><b>Private Server</b><span>{priv === true ? 'Game đang bật Private Server.' : priv === false ? 'Game không bật Private Server.' : 'Chưa xác định.'}</span></div><button className="linkbtn" onClick={() => window.open(`${R}/games/${game.rootPlaceId}`, '_blank')}>Mở Roblox ↗</button>{priv && <div className="vpnbox">💡 Chưa có server riêng? Tạo Private Server trên Roblox rồi quay lại đây để làm mới.</div>}</div>
-        <div className="toolbar"><div className="toolbarTitle"><b>👥 Server công khai</b><small>Đã ưu tiên server ít người từ API</small></div><select className="select" value={sort} onChange={e => setSort(e.target.value)}><option value="few">Ít người nhất</option><option value="space">Nhiều chỗ trống</option></select><select className="select" value={max} onChange={e => setMax(e.target.value)}><option value="all">Tất cả</option><option value="5">≤ 5 người</option><option value="10">≤ 10 người</option><option value="20">≤ 20 người</option></select><button className="refresh" onClick={() => game && open(game)}>↻ Làm mới</button><span className="muted countText">{shown.length} server {time && `· ${time}`}</span></div>
-        {shown.length ? <div className="serverList">{shown.map((s, i) => { const pct = s.maxPlayers ? Math.min(100, Math.round(s.playing / s.maxPlayers * 100)) : 0; return <div className="server" style={{ animationDelay: `${Math.min(i, 15) * 25}ms` }} key={s.id}><div className="serverMain"><div className="serverTop"><b>Server {s.id.slice(0, 8)}…</b><span className={`status ${pct < 35 ? 'good' : pct < 70 ? 'mid' : 'full'}`}>{pct < 35 ? 'Rất thoáng' : pct < 70 ? 'Ổn' : 'Đông'}</span></div><div className="small">{s.playing}/{s.maxPlayers} người · còn {Math.max(0, s.maxPlayers - s.playing)} chỗ</div><div className="bar"><div className="fill" style={{ width: `${pct}%` }} /></div></div><button className="join" onClick={() => setTarget(s)}>🚀 Vào server</button></div> })}</div> : <div className="empty compact">Không có server phù hợp với bộ lọc.</div>}
-      </>}
-      {error && <div className="notice danger">⚠️ {error}</div>}
-    </>}
-
-    {pending && <div className="modalBackdrop"><div className="modal"><div className="modalIcon">✨</div><h2>Có phải username của bạn?</h2><div className="confirmUser">{pending.avatar ? <img className="confirmAvatar" src={pending.avatar} /> : <div className="avatarCircle">{pending.name[0]}</div>}<div><b>{pending.displayName}</b><div className="small">@{pending.name} · ID {pending.id}</div></div></div><p>Avatar và username được lấy từ dữ liệu công khai của Roblox. Không cần mật khẩu hoặc cookie.</p><div className="modalActions"><button className="btn secondary" onClick={() => setPending(null)}>Không phải</button><button className="btn" onClick={confirm}>✓ Đúng, đó là tôi</button></div></div></div>}
-    {target && <div className="modalBackdrop"><div className="modal"><div className="modalIcon">🚀</div><h2>Chọn ứng dụng Roblox</h2><p>Mở <b>đúng server vừa chọn</b> bằng:</p><div className="appChoices"><button onClick={() => launch('vng')}><span>🇻🇳</span><div><b>Roblox VN</b><small>Roblox VNG</small></div></button><button onClick={() => launch('global')}><span>🌎</span><div><b>Roblox quốc tế</b><small>Roblox</small></div></button></div><button className="cancel" onClick={() => setTarget(null)}>Hủy</button></div></div>}
-    <footer className="footer">RBLX Server Finder · Không phải sản phẩm chính thức của Roblox.</footer>
-  </main>;
-}
+function GameGrid({games,image,onOpen}:{games:Game[];image:(g:Game)=>string;onOpen:(g:Game)=>void}){return <div className="gameGrid">{games.map((g,i)=><button className="gameCard" key={g.universeId} style={{animationDelay:`${Math.min(i,12)*35}ms`}} onClick={()=>onOpen(g)}><div className="gameImage"><img src={image(g)} alt="" loading={i<6?'eager':'lazy'} onError={e=>{const x=e.currentTarget;if(!x.dataset.fallback){x.dataset.fallback='1';x.src=`https://www.roblox.com/asset-thumbnail/image?assetId=${g.rootPlaceId}&width=768&height=432&format=png`}}}/><span>▶</span></div><h3>{g.name}</h3><p>👥 {fmt(g.playing)} đang chơi</p></button>)}</div>}
+function Feature({icon,title,text}:{icon:string;title:string;text:string}){return <div className="panel feature"><span>{icon}</span><h2>{title}</h2><p>{text}</p></div>}
+function Stat({n,t}:{n:string;t:string}){return <div className="stat"><b>{n}</b><span>{t}</span></div>}
+function ServerCard({s,i,onJoin}:{s:Server;i:number;onJoin:()=>void}){const pct=s.maxPlayers?Math.round(s.playing/s.maxPlayers*100):0;return <article className="serverCard" style={{animationDelay:`${Math.min(i,16)*25}ms`}}><div className="serverInfo"><div className="serverTitle"><b>Server #{s.id.slice(0,8)}</b><em className={pct<35?'green':pct<70?'yellow':'red'}>{pct<35?'Rất thoáng':pct<70?'Ổn':'Đông'}</em></div><strong>{s.playing}<small>/{s.maxPlayers} người</small></strong><p>Còn {Math.max(0,s.maxPlayers-s.playing)} chỗ trống</p><div className="progress"><i style={{width:`${pct}%`}}/></div></div><button className="joinBtn" onClick={onJoin}>Vào server <span>→</span></button></article>}
