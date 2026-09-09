@@ -90,14 +90,21 @@ export default function Home() {
     location.href='intent://placeId='+encodeURIComponent(g.rootPlaceId)+'&gameInstanceId='+encodeURIComponent(s.id)+'#Intent;scheme=roblox;package='+pkg+';end';
     setTimeout(()=>location.href='https://www.roblox.com/games/start?placeId='+g.rootPlaceId+'&gameInstanceId='+encodeURIComponent(s.id),1200);
   };
-  const oldGames=window.gamesPage; window.gamesPage=()=>{document.getElementById('root').innerHTML='<section class="pagehead"><span class="eyebrow">ROBLOX DISCOVERY</span><h2>🎮 Tìm game</h2><p>Tìm game thật từ Roblox.</p></section><div class="search"><input id="q" placeholder="Brookhaven, Blox Fruits…"><button class="btn primary" id="realSearch">Tìm game</button></div><div class="chips"><button class="chip">Brookhaven</button><button class="chip">Blox Fruits</button><button class="chip">Grow a Garden</button></div>';document.getElementById('realSearch').onclick=()=>realGames(document.getElementById('q').value);document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>realGames(b.textContent));document.getElementById('q').onkeydown=e=>{if(e.key==='Enter')realGames(e.target.value)};polishButtons();};
-  const oldOpenM=window.openM;
-  window.openM=oldOpenM;
+  window.gamesPage=()=>{document.getElementById('root').innerHTML='<section class="pagehead"><span class="eyebrow">ROBLOX DISCOVERY</span><h2>🎮 Tìm game</h2><p>Tìm game thật từ Roblox.</p></section><div class="search"><input id="q" placeholder="Brookhaven, Blox Fruits…"><button class="btn primary" id="realSearch">Tìm game</button></div><div class="chips"><button class="chip">Brookhaven</button><button class="chip">Blox Fruits</button><button class="chip">Grow a Garden</button></div>';document.getElementById('realSearch').onclick=()=>realGames(document.getElementById('q').value);document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>realGames(b.textContent));document.getElementById('q').onkeydown=e=>{if(e.key==='Enter')realGames(e.target.value)};polishButtons();};
   document.addEventListener('click',e=>{const b=e.target.closest('#apps .apps button');if(!b)return;const text=b.textContent||'';launchReal(text.includes('VN')?'vng':'global');});
-  function addSupport(){const d=document.querySelector('.donates');if(!d||d.querySelector('.supportCard'))return;const c=document.createElement('article');c.className='card donate supportCard';c.innerHTML='<div class="donateicon">'+svg('mail')+'</div><span class="eyebrow">SUPPORT WEBSITE</span><h2>Hỗ trợ website</h2><p>Gặp lỗi hoặc có góp ý? Gửi email trực tiếp cho đội ngũ hỗ trợ RBLXFinder.</p><button class="btn primary">'+svg('mail')+' Gửi email hỗ trợ</button>';c.querySelector('button').onclick=()=>location.href='mailto:supportrobloxfinder@gmail.com?subject=H%E1%BB%97%20tr%E1%BB%A3%20RBLXFinder';d.appendChild(c)}
+  function addSupport(){const d=document.querySelector('.donates');if(d&&!d.querySelector('.supportCard')){const c=document.createElement('article');c.className='card donate supportCard';c.innerHTML='<div class="donateicon">'+svg('mail')+'</div><span class="eyebrow">SUPPORT WEBSITE</span><h2>Hỗ trợ website</h2><p>Gặp lỗi hoặc có góp ý? Gửi email trực tiếp cho đội ngũ hỗ trợ RBLXFinder.</p><button class="btn primary">'+svg('mail')+' Gửi email hỗ trợ</button>';c.querySelector('button').onclick=()=>location.href='mailto:supportrobloxfinder@gmail.com?subject=H%E1%BB%97%20tr%E1%BB%A3%20RBLXFinder';d.appendChild(c)}}
+  function addCopyright(){
+    let f=document.getElementById('rblxCopyright');
+    if(f)return;
+    f=document.createElement('footer');f.id='rblxCopyright';f.innerHTML='<div>© 2026 <strong>RBLXFinder</strong>. Bản quyền thuộc về RBLXFinder.</div><div class="copyrightSub">Website độc lập, không thuộc Roblox Corporation.</div>';
+    f.style.cssText='max-width:1150px;margin:0 auto;padding:28px 20px 34px;border-top:1px solid #e8e8f0;text-align:center;color:#777b8d;font-size:12px;line-height:1.7';
+    const strong=f.querySelector('strong');strong.style.color='#6252d8';
+    const sub=f.querySelector('.copyrightSub');sub.style.marginTop='4px';sub.style.fontSize='11px';
+    document.body.appendChild(f);
+  }
   const style=document.createElement('style');style.textContent='.uiIcon{width:18px;height:18px;display:inline-block;flex:0 0 auto}.btn,.links button,.chip,.apps button{display:inline-flex;align-items:center;justify-content:center;gap:8px}.donates{grid-template-columns:repeat(3,1fr)!important}@media(max-width:850px){.donates{grid-template-columns:1fr!important}}';document.head.appendChild(style);
-  const oldPage=window.page; window.page=function(p){oldPage(p);setTimeout(()=>{polishButtons();addSupport();},30);};
-  setTimeout(()=>{polishButtons();addSupport();},0);
+  const oldPage=window.page; window.page=function(p){oldPage(p);setTimeout(()=>{polishButtons();addSupport();addCopyright();},30);};
+  setTimeout(()=>{polishButtons();addSupport();addCopyright();},0);
 })();
 </script>`;
   html = html.replace('</body>', enhancement + '\n</body>');
