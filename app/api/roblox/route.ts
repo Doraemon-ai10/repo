@@ -65,11 +65,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'games') {
-      const q = String(body.query || '').trim();
-      if (!q) return NextResponse.json({ data: [] });
+      const q = String(body.query || body.q || '').trim();
+      if (!q) return NextResponse.json({ data: [], games: [] });
       const sessionId = crypto.randomUUID();
       const raw = await roblox(`https://apis.roblox.com/search-api/omni-search?searchQuery=${encodeURIComponent(q)}&sessionId=${sessionId}&pageType=all`);
-      return NextResponse.json({ data: normalizeSearch(raw) });
+      const games = normalizeSearch(raw);
+      return NextResponse.json({ data: games, games });
     }
 
     if (action === 'thumbs') {
@@ -94,11 +95,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'servers') {
-      const placeId = Number(body.placeId);
-      if (!Number.isInteger(placeId)) return NextResponse.json({ error: 'Invalid placeId' }, { status: 400 });
+      let placeId = Number(body.placeId);
+      const universeId = Number(body.universeId);
 
-      // Ask Roblox for ascending population first. The old implementation used
-      // descending order, which made “Ít người nhất” show crowded servers.
+      // The UI accepts a Universe ID. Roblox's public-server endpoint needs a Place ID,
+      // so resolve Universe -> root Place when only universeId was supplied.
+      if (!Number.isInteger(placeId) && Number.isInteger(universeId)) {
+        const details = await roblox(`https://games.roblox.com/v1/games?universeIds=${universeId}`);
+        placeId = Number(details?.data?.[0]?.rootPlaceId);
+      }
+      if (!Number.isInteger(placeId) || placeId <= 0) return NextResponse.json({ error: 'Invalid placeId/universeId' }, { status: 400 });
+
+      // Ascending population means the first results are genuinely the least-populated servers.
       let cursor = '';
       const all: any[] = [];
       const seen = new Set<string>();
@@ -113,7 +121,7 @@ export async function POST(req: NextRequest) {
         if (!cursor) break;
       }
       all.sort((a, b) => Number(a.playing || 0) - Number(b.playing || 0));
-      return NextResponse.json({ data: all.slice(0, 250) });
+      return NextResponse.json({ data: all.slice(0, 250), placeId });
     }
 
     throw new Error('Unknown action');
