@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   async rewrites() {
     return [
+      { source: '/roblox', destination: '/' },
+      { source: '/freefire', destination: '/' },
       { source: '/games', destination: '/' },
       { source: '/servers', destination: '/' },
       { source: '/about', destination: '/' },
