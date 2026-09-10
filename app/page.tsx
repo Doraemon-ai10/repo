@@ -6,186 +6,23 @@ export const dynamic = 'force-dynamic';
 export default function Home() {
   const file = path.join(process.cwd(), 'rblxfinder-ui-preview.html');
   let html = fs.readFileSync(file, 'utf8');
-
   const enhancement = `
 <script>
 (() => {
-  const api = async (action, payload = {}) => {
-    const r = await fetch('/api/roblox', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action, ...payload})
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'API error');
-    return d;
-  };
-  const esc = s => String(s ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  const fmt = n => Number(n || 0).toLocaleString('vi-VN');
-
-  // Each main navigation button has its own real URL. pushState keeps the
-  // current app loaded while the address bar, refresh and browser back/forward work.
-  const ROUTES = {home:'/', games:'/games', servers:'/servers', about:'/about', donate:'/donate'};
-  function go(p, replace = false) {
-    if (!ROUTES[p]) p = 'home';
-    history[replace ? 'replaceState' : 'pushState']({page:p}, '', ROUTES[p]);
-    document.querySelectorAll('.links button').forEach(b => b.classList.toggle('on', b.id === p));
-    if (p === 'home' && typeof home === 'function') home();
-    else if (p === 'games') renderGamesPage();
-    else if (p === 'servers' && typeof serversPage === 'function') serversPage();
-    else if (p === 'about' && typeof aboutPage === 'function') aboutPage();
-    else if (p === 'donate' && typeof donatePage === 'function') donatePage();
-    window.scrollTo(0, 0);
-    setTimeout(bindNavigation, 0);
-  }
-  window.page = go;
-
-  function bindNavigation() {
-    document.querySelectorAll('.links button').forEach(btn => {
-      if (btn.dataset.rblxBound === '1') return;
-      btn.dataset.rblxBound = '1';
-      btn.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        go(btn.id);
-      }, true);
-    });
-    document.querySelectorAll('.brand').forEach(btn => {
-      if (btn.dataset.rblxBound === '1') return;
-      btn.dataset.rblxBound = '1';
-      btn.addEventListener('click', e => { e.preventDefault(); e.stopImmediatePropagation(); go('home'); }, true);
-    });
-  }
-
-  // Persistent user profile: once the public Roblox username is confirmed,
-  // it is stored locally and restored automatically on later visits.
-  const USER_KEY = 'rblxfinder_user_v1';
-  const getUser = () => { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; } };
-  const saveUser = u => localStorage.setItem(USER_KEY, JSON.stringify({id:u.id,name:u.name,displayName:u.displayName || u.name,avatar:u.avatar || ''}));
-  function applySavedUser() {
-    const u = getUser();
-    if (!u) return;
-    window.__rblxUser = u;
-    const loginBtn = document.querySelector('.links')?.querySelector('[data-user-button]');
-    if (loginBtn) { loginBtn.textContent = u.displayName || u.name; loginBtn.dataset.userButton = '1'; }
-  }
-
-  async function verifyRoblox() {
-    const input = document.getElementById('uname');
-    const n = input?.value.trim();
-    if (!n) return toast('Hãy nhập username trước');
-    try {
-      toast('Đang tìm tài khoản Roblox…');
-      const d = await api('username', {username:n});
-      const u = d?.data?.[0];
-      if (!u) throw new Error('not found');
-      let avatar = '';
-      try { avatar = (await api('avatar',{userId:u.id}))?.data?.[0]?.imageUrl || ''; } catch {}
-      window.__rblxUser = {...u, avatar};
-      const cn=document.getElementById('cn'), ca=document.getElementById('ca'), img=document.querySelector('#confirm .user img');
-      if(cn) cn.textContent=u.displayName || u.name;
-      if(ca) ca.textContent='@'+u.name;
-      if(img && avatar) img.src=avatar;
-      closeM('login'); openM('confirm');
-    } catch { toast('Không tìm thấy username Roblox. Hãy kiểm tra lại.'); }
-  }
-  window.verify = verifyRoblox;
-  window.confirmed = () => {
-    const u = window.__rblxUser;
-    if (!u) return;
-    saveUser(u);
-    closeM('confirm');
-    toast('✓ Đã lưu tài khoản — lần sau không cần đăng nhập lại');
-    applySavedUser();
-    go('games');
-  };
-
-  function renderGamesPage() {
-    const root = document.getElementById('root');
-    root.innerHTML = '<section class="pagehead"><span class="eyebrow">ROBLOX DISCOVERY</span><h2>Tìm game</h2><p>Tìm dữ liệu game Roblox thật theo username hoặc tên game.</p></section>' +
-      '<div class="search"><input id="q" placeholder="Brookhaven, Blox Fruits…"><button class="btn primary" id="realSearch">Tìm game</button></div>' +
-      '<div class="chips"><button class="chip">Brookhaven</button><button class="chip">Blox Fruits</button><button class="chip">Grow a Garden</button></div>' +
-      '<div id="gamesResults" class="games"></div>';
-    const q=document.getElementById('q');
-    document.getElementById('realSearch').onclick=()=>realGames(q.value);
-    q.onkeydown=e=>{if(e.key==='Enter')realGames(q.value)};
-    root.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{q.value=b.textContent;realGames(q.value)});
-    setTimeout(bindNavigation,0);
-  }
-
-  async function realGames(q) {
-    if (!q?.trim()) return toast('Nhập tên game trước');
-    try {
-      toast('Đang tìm game Roblox…');
-      const d=await api('games',{query:q.trim()});
-      const list=Array.isArray(d?.data)?d.data:[];
-      let thumbs=[];
-      const ids=list.map(x=>x.universeId).filter(Boolean);
-      if(ids.length){try{thumbs=(await api('thumbs',{universeIds:ids})).data||[]}catch{}}
-      const tm={};
-      thumbs.forEach(x=>{const z=x?.thumbnails?.find(v=>v?.imageUrl);if(z)tm[x.universeId]=z.imageUrl});
-      window.__games=list;
-      const out=document.getElementById('gamesResults');
-      out.innerHTML=list.map(g=>'<button class="game" data-id="'+esc(g.universeId)+'"><div class="thumb">'+(tm[g.universeId]?'<img src="'+esc(tm[g.universeId])+'" alt="" style="width:100%;height:100%;object-fit:cover">':'')+'</div><div class="gamebody"><h3>'+esc(g.name)+'</h3><p>👥 '+fmt(g.playing)+' đang chơi</p></div></button>').join('') || '<div class="empty">Không tìm thấy game.</div>';
-      out.querySelectorAll('.game').forEach(b=>b.onclick=()=>openRealGame(list.find(g=>String(g.universeId)===b.dataset.id)));
-      if(!list.length) toast('Không tìm thấy game.');
-    } catch { toast('API Roblox đang lỗi hoặc tạm thời không phản hồi.'); }
-  }
-
-  async function openRealGame(g) {
-    if(!g) return;
-    window.__selectedGame=g;
-    go('servers');
-    try {
-      toast('Đang tải server…');
-      const [det,priv,srv]=await Promise.all([
-        api('details',{universeId:g.universeId}),
-        api('private',{universeId:g.universeId}),
-        api('servers',{placeId:g.rootPlaceId})
-      ]);
-      renderServers(g,det?.data?.[0]||g,priv?.data===true||priv?.data?.enabled===true,Array.isArray(srv?.data)?srv.data:[]);
-    } catch { toast('Không thể tải server của game này.'); }
-  }
-
-  function renderServers(g,d,enabled,servers) {
-    const root=document.getElementById('root');
-    const rows=servers.map((s,i)=>'<article class="panel server"><div class="rank">'+(i+1)+'</div><div class="serverinfo"><b>Server #'+String(s.id).slice(0,8)+'</b><small>'+fmt(s.playing)+' / '+fmt(s.maxPlayers)+' người</small><div class="bar"><i style="width:'+Math.min(100,(s.playing/Math.max(1,s.maxPlayers))*100)+'%"></i></div></div><div class="count"><strong>'+fmt(s.playing)+'</strong><small>/ '+fmt(s.maxPlayers)+'</small></div><button class="btn primary joinBtn" data-sid="'+esc(s.id)+'">Vào</button></article>').join('');
-    root.innerHTML='<button class="btn ghost" id="backGames">← Tìm game</button><section class="pagehead"><span class="eyebrow">SERVER BROWSER</span><h2>'+esc(d.name||g.name)+'</h2><p>👥 '+fmt(d.playing)+' đang chơi · Creator: '+esc(d.creator?.name||'Roblox')+'</p></section><div class="panel" style="padding:20px;margin-bottom:13px"><strong>Private Server:</strong> <span style="font-weight:900;color:'+(enabled?'#16a34a':'#dc2626')+'">'+(enabled?'✓ Có thể tạo':'✕ Game không cho tạo')+'</span><button class="btn '+(enabled?'primary':'ghost')+'" id="svvBtn" '+(enabled?'':'disabled')+'>Tạo SVV</button></div><div class="panel toolbar"><button class="btn ghost" id="refresh">↻ Làm mới</button></div><div style="margin-top:13px" id="serverList">'+(rows||'<div class="empty">Không có server công khai.</div>')+'</div>';
-    document.getElementById('backGames').onclick=()=>go('games');
-    document.getElementById('refresh').onclick=()=>openRealGame(g);
-    document.getElementById('svvBtn')?.addEventListener('click',()=>location.href=location.origin+'/servers?create='+encodeURIComponent(g.rootPlaceId));
-    root.querySelectorAll('.joinBtn').forEach(b=>b.onclick=()=>{const s=servers.find(x=>x.id===b.dataset.sid);if(s){window.__targetServer=s;openM('apps')}});
-  }
-
-  window.launchReal = kind => {
-    const g=window.__selectedGame,s=window.__targetServer;
-    if(!g||!s)return toast('Không tìm thấy server.');
-    const pkg=kind==='vng'?'com.roblox.client.vnggames':'com.roblox.client';
-    closeM('apps');
-    location.href='intent://placeId='+encodeURIComponent(g.rootPlaceId)+'&gameInstanceId='+encodeURIComponent(s.id)+'#Intent;scheme=roblox;package='+pkg+';end';
-    setTimeout(()=>location.href='https://www.roblox.com/games/start?placeId='+g.rootPlaceId+'&gameInstanceId='+encodeURIComponent(s.id),1200);
-  };
-
-  // Browser back/forward and direct /games, /about, /donate URLs.
-  window.addEventListener('popstate',()=>{
-    const p=location.pathname.replace(/^\//,'')||'home';
-    go(p,true);
-  });
-  function initialRoute(){
-    const p=location.pathname.replace(/^\//,'')||'home';
-    go(ROUTES[p]?p:'home',true);
-    applySavedUser();
-  }
-
-  const style=document.createElement('style');
-  style.textContent='.links,.links button{pointer-events:auto!important}.links button{position:relative;z-index:50}.btn,.chip,.game,.brand{cursor:pointer}.empty{padding:30px;text-align:center;color:#777b8d}.rblxSavedUser{display:inline-flex;align-items:center;gap:7px;font-weight:900;color:#6252d8}';
-  document.head.appendChild(style);
-
-  bindNavigation();
-  setTimeout(initialRoute,0);
+  const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+  const style=document.createElement('style');style.textContent=\`
+  .rblx-launcher{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 20% 10%,#e8e3ff,transparent 35%),radial-gradient(circle at 85% 20%,#dff8ff,transparent 32%),#f7f7fb;font-family:Inter,system-ui,sans-serif}.rblx-launcher *{box-sizing:border-box}.launcher-card{width:min(900px,100%);text-align:center}.launcher-kicker{font-size:11px;font-weight:950;letter-spacing:2px;color:#6858dc}.launcher-card h1{font-size:clamp(38px,7vw,70px);letter-spacing:-3px;margin:12px 0}.launcher-card>p{color:#777b8d;font-size:16px}.launcher-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:32px}.launcher-choice{border:1px solid #e5e5ed;background:#fff;border-radius:28px;padding:28px;text-align:left;cursor:pointer;box-shadow:0 20px 60px #29235f12;transition:.22s}.launcher-choice:hover{transform:translateY(-7px);box-shadow:0 30px 80px #29235f20}.launcher-choice .big{font-size:52px}.launcher-choice h2{margin:14px 0 7px}.launcher-choice p{color:#777b8d;line-height:1.6;margin:0}.launcher-choice b{display:inline-block;margin-top:20px;color:#6252d8}.ff-shell{max-width:1150px;margin:auto;padding:25px 20px 60px}.ff-head{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}.ff-brand{font-weight:950;font-size:24px}.ff-sub{color:#777b8d;font-size:13px}.ff-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}.ff-card{background:#fff;border:1px solid #e8e8f0;border-radius:20px;padding:20px;box-shadow:0 10px 30px #29235f0b}.ff-card h3{margin:0 0 8px}.ff-card p{color:#777b8d;font-size:13px;line-height:1.55}.ff-select,.ff-range{width:100%;margin-top:10px}.ff-select{border:1px solid #deddeb;border-radius:12px;padding:12px;background:#fff}.ff-value{font-size:30px;font-weight:950;color:#6252d8;margin-top:10px}.ff-actions{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}.ff-btn{border:0;border-radius:13px;padding:12px 17px;font-weight:900;cursor:pointer}.ff-primary{background:linear-gradient(135deg,#6353db,#986eff);color:#fff}.ff-ghost{background:#fff;border:1px solid #e5e5ed;color:#505464}.ff-table{width:100%;border-collapse:collapse;margin-top:10px}.ff-table th,.ff-table td{text-align:left;padding:12px;border-bottom:1px solid #eee}.ff-note{font-size:12px;color:#8a8e9d;margin-top:12px}.ff-badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#efedff;color:#6858dc;font-weight:900;font-size:11px}@media(max-width:760px){.launcher-grid,.ff-controls{grid-template-columns:1fr}.ff-shell{padding:18px 14px 45px}}
+  \`;document.head.appendChild(style);
+  const top=document.querySelector('.top'),root=document.getElementById('root');if(top)top.style.display='none';if(root)root.style.display='none';
+  const launcher=document.createElement('div');launcher.className='rblx-launcher';launcher.innerHTML='<div class="launcher-card"><span class="launcher-kicker">NOOBIE GAMING HUB</span><h1>Chọn game bạn muốn dùng</h1><p>Một website, hai khu vực: Roblox Finder và Free Fire Settings.</p><div class="launcher-grid"><button class="launcher-choice" id="pickRoblox"><div class="big">R</div><h2>Roblox</h2><p>Giữ nguyên giao diện RBLXFinder hiện tại: tìm game, server, username và các tính năng Roblox.</p><b>Mở Roblox →</b></button><button class="launcher-choice" id="pickFreeFire"><div class="big">FF</div><h2>Free Fire</h2><p>Độ nhạy, nút bắn, DPI và preset theo thiết bị như iPhone, Samsung, OPPO, Xiaomi, vivo...</p><b>Mở Free Fire →</b></button></div></div>';document.body.appendChild(launcher);
+  const showRoblox=()=>{history.pushState({game:'roblox'},'', '/roblox');launcher.remove();if(top)top.style.display='';if(root)root.style.display='';if(window.page)window.page('home');};
+  const ffPresets={'iPhone 11':{sensitivity:188,dpi:0,fire:48},'iPhone 13':{sensitivity:194,dpi:0,fire:49},'iPhone 15 Pro':{sensitivity:200,dpi:0,fire:50},'Samsung Galaxy A55':{sensitivity:184,dpi:480,fire:48},'Samsung Galaxy S24':{sensitivity:192,dpi:520,fire:49},'OPPO Reno 11':{sensitivity:186,dpi:480,fire:48},'OPPO Find X7':{sensitivity:194,dpi:520,fire:50},'Xiaomi Redmi Note 13':{sensitivity:182,dpi:480,fire:48},'vivo V30':{sensitivity:188,dpi:480,fire:48}};
+  function freeFire(){history.pushState({game:'freefire'},'', '/freefire');if(top)top.style.display='none';if(launcher.isConnected)launcher.remove();if(!root)return;root.style.display='block';root.innerHTML='<div class="ff-shell"><div class="ff-head"><div><span class="ff-badge">FREE FIRE SETTINGS</span><div class="ff-brand">Free Fire Sensitivity Lab</div><div class="ff-sub">Preset tham khảo theo thiết bị — có thể tinh chỉnh theo HUD, FPS và thói quen kéo tâm.</div></div><button class="ff-btn ff-ghost" id="backChooser">← Chọn game khác</button></div><div class="ff-card" style="margin-top:18px"><h3>Chọn thiết bị</h3><p>Chọn đúng model để nạp preset tương ứng.</p><select id="device" class="ff-select"><option value="">— Chọn thiết bị —</option>'+Object.keys(ffPresets).map(x=>'<option>'+x+'</option>').join('')+'<option value="custom">Android khác / Tùy chỉnh</option></select></div><div class="ff-controls"><div class="ff-card"><h3>Độ nhạy tổng</h3><p>Preset khởi điểm cho kéo tâm.</p><input id="sensitivity" class="ff-range" type="range" min="0" max="200" value="190"><div class="ff-value" id="sensitivityV">190</div></div><div class="ff-card"><h3>Nút bắn</h3><p>Kích thước nút bắn chính.</p><input id="fire" class="ff-range" type="range" min="35" max="65" value="49"><div class="ff-value" id="fireV">49%</div></div><div class="ff-card"><h3>DPI</h3><p>Android có thể chỉnh DPI; iPhone không cần DPI hệ thống.</p><input id="dpi" class="ff-range" type="range" min="320" max="720" value="480"><div class="ff-value" id="dpiV">480</div></div></div><div class="ff-card" style="margin-top:14px"><h3>Chi tiết độ nhạy</h3><table class="ff-table"><thead><tr><th>Thiết lập</th><th>Giá trị</th></tr></thead><tbody id="sensRows"></tbody></table><div class="ff-note">Không có một bộ thông số chuẩn tuyệt đối cho mọi máy. Đây là preset khởi điểm; nên test trong Training Ground và tinh chỉnh 2–5 điểm.</div></div><div class="ff-actions"><button class="ff-btn ff-primary" id="saveFF">Lưu thiết bị</button><button class="ff-btn ff-ghost" id="resetFF">Khôi phục preset</button></div></div>';
+    const update=()=>{const s=+document.getElementById('sensitivity').value;document.getElementById('sensitivityV').textContent=s;document.getElementById('fireV').textContent=document.getElementById('fire').value+'%';document.getElementById('dpiV').textContent=document.getElementById('dpi').value;const rows=[['General',s],['Red Dot',Math.max(0,s-8)],['2x Scope',Math.max(0,s-20)],['4x Scope',Math.max(0,s-34)],['AWM / Sniper',Math.max(0,s-52)]];document.getElementById('sensRows').innerHTML=rows.map(r=>'<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td></tr>').join('')};['sensitivity','fire','dpi'].forEach(id=>document.getElementById(id).oninput=update);document.getElementById('device').onchange=e=>{const p=ffPresets[e.target.value];if(p){document.getElementById('sensitivity').value=p.sensitivity;document.getElementById('fire').value=p.fire;document.getElementById('dpi').value=p.dpi||480;update()}};document.getElementById('saveFF').onclick=()=>{localStorage.setItem('ff_device',document.getElementById('device').value);localStorage.setItem('ff_settings',JSON.stringify({sensitivity:document.getElementById('sensitivity').value,fire:document.getElementById('fire').value,dpi:document.getElementById('dpi').value}));alert('Đã lưu preset Free Fire trên thiết bị này.');};document.getElementById('resetFF').onclick=()=>{document.getElementById('sensitivity').value=190;document.getElementById('fire').value=49;document.getElementById('dpi').value=480;update()};document.getElementById('backChooser').onclick=()=>{history.pushState({},'', '/');location.reload()};const saved=localStorage.getItem('ff_settings');if(saved)try{const x=JSON.parse(saved);Object.entries(x).forEach(([id,v])=>{if(document.getElementById(id))document.getElementById(id).value=v})}catch{}update();}
+  launcher.querySelector('#pickRoblox').onclick=showRoblox;launcher.querySelector('#pickFreeFire').onclick=freeFire;
+  const p=location.pathname;if(p==='/freefire')freeFire();else if(p==='/roblox')showRoblox();
 })();
 </script>`;
-
   html = html.replace('</body>', enhancement + '\n</body>');
   return <iframe title="RBLXFinder" srcDoc={html} style={{display:'block',width:'100%',height:'100vh',border:0}} />;
 }
