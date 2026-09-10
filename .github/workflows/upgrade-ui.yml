@@ -1,0 +1,48 @@
+name: RBLXFinder UI upgrade
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    if: "!contains(github.event.head_commit.message, 'chore: apply RBLXFinder UI upgrade')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/page.tsx')
+          s=p.read_text()
+          marker='/* RBLXFINDER_UI_V2 */'
+          if marker in s:
+              raise SystemExit(0)
+          old="<button onClick={()=>choose('freefire')}><img src=\"https://ff.garena.com/favicon.ico\"/><h2>Free Fire</h2><p>Độ nhạy, preset thiết bị, cộng đồng và nạp chính thức.</p><b>Mở Free Fire →</b></button>"
+          new="<button onClick={()=>choose('freefire')} className=\"ff-pick-card\"><img className=\"ff-pick-thumb\" src=\"/free-fire-thumb.svg\"/><div className=\"ff-pick-content\"><span className=\"badge\">FREE FIRE · FREE</span><h2>Free Fire</h2><p>Độ nhạy, preset thiết bị, cộng đồng và nạp chính thức.</p><b>Mở Free Fire →</b></div></button>"
+          if old in s:
+              s=s.replace(old,new,1)
+          old_nav="<Button className={page==='community'?'active':''} onClick={()=>nav('roblox','community')}>Cộng đồng</Button></nav>"
+          new_nav="<Button className={page==='community'?'active':''} onClick={()=>nav('roblox','community')}>Cộng đồng</Button><a className=\"btn primary plus-nav\" href=\"/plus\">Plus</a></nav>"
+          if old_nav in s:
+              s=s.replace(old_nav,new_nav,1)
+          old_hero="<section className=\"hero\"><span className=\"badge\">SENSITIVITY LAB</span><h1>Chọn máy và tinh chỉnh độ nhạy</h1>"
+          new_hero="<section className=\"hero ff-hero\"><div className=\"ff-hero-grid\"><div><span className=\"badge\">SENSITIVITY LAB · FREE</span><h1>Chọn máy và tinh chỉnh độ nhạy</h1>"
+          if old_hero in s:
+              s=s.replace(old_hero,new_hero,1)
+              s=s.replace("<p>Preset chỉ là điểm bắt đầu; hãy test trong Training và chỉnh theo FPS/màn hình.</p><select className=\"input\"", "<p>Preset chỉ là điểm bắt đầu; hãy test trong Training và chỉnh theo FPS/màn hình. Free Fire không có hệ thống Plus.</p></div><img className=\"ff-hero-thumb\" src=\"/free-fire-thumb.svg\" alt=\"Free Fire\"/></div><select className=\"input\"",1)
+          css=".ff-pick-card{overflow:hidden;position:relative}.ff-pick-thumb{width:100%!important;height:170px!important;display:block;object-fit:cover!important;border-radius:18px!important;margin:-25px -25px 18px!important;max-width:calc(100% + 50px)}.ff-pick-content{padding:0 0 2px}.ff-hero-grid{display:grid;grid-template-columns:1.5fr .8fr;gap:20px;align-items:center}.ff-hero-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:18px;box-shadow:0 18px 50px #29235f20}.plus-nav{margin-left:auto!important}.ff-hero{overflow:hidden}@media(max-width:760px){.ff-hero-grid{grid-template-columns:1fr}.ff-hero-thumb{max-height:220px}.ff-pick-thumb{height:150px!important}}"
+          if css not in s:
+              s=s.replace("const styles=`", "const styles=`"+css)
+          s += "\n"+marker+"\n"
+          p.write_text(s)
+          PY
+      - name: Commit patched UI
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: apply RBLXFinder UI upgrade'
+          git push
