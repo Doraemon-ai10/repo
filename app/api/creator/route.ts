@@ -1,102 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SB = 'https://mbsnpcdmenfufhbctoek.supabase.co';
-const KEY = 'sb_publishable_rwwoH9hpk6cg3woGveNObw_C00pNZsx';
+const SB=process.env.SUPABASE_URL||'https://mbsnpcdmenfufhbctoek.supabase.co';
+const KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_PUBLISHABLE_KEY||'sb_publishable_rwwoH9hpk6cg3woGveNObw_C00pNZsx';
+const CREATOR='khoungbell7777';
+const SESSION_COOKIE='rblxf_creator_session';
 
-async function rpc(name: string, body: Record<string, unknown>) {
-  const r = await fetch(`${SB}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    cache: 'no-store',
-  });
-  const text = await r.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch { data = { error: text }; }
-  if (!r.ok) throw new Error(data?.message || data?.error || `RPC ${r.status}`);
-  return data;
-}
+async function rpc(name:string,body:Record<string,unknown>){const r=await fetch(`${SB}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'});const text=await r.text();let data:any={};try{data=JSON.parse(text)}catch{data={error:text}}if(!r.ok)throw new Error(data?.message||data?.error||`RPC ${r.status}`);return data}
+async function roblox(url:string,init?:RequestInit){const r=await fetch(url,{...init,cache:'no-store',headers:{'User-Agent':'RBLXFinder-Plus/2.0',...(init?.headers||{})}});const text=await r.text();let data:any={};try{data=JSON.parse(text)}catch{data={message:text}}if(!r.ok)throw new Error(data?.message||`Roblox ${r.status}`);return data}
+const enc=new TextEncoder();
+async function sign(value:string){const secret=process.env.CREATOR_SESSION_SECRET;if(!secret)throw new Error('creator_auth_not_configured');const key=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);const sig=await crypto.subtle.sign('HMAC',key,enc.encode(value));return btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function verifySession(req:NextRequest){const token=req.cookies.get(SESSION_COOKIE)?.value||'';const parts=token.split('.');if(parts.length!==2)return false;const [payload,sig]=parts;const expected=await sign(payload).catch(()=>null);if(!expected||expected!==sig)return false;try{const [user,exp]=atob(payload).split('|');return user===CREATOR&&Number(exp)>Date.now()}catch{return false}}
 
-async function roblox(url: string, init?: RequestInit) {
-  const r = await fetch(url, { ...init, cache: 'no-store', headers: { 'User-Agent': 'RBLXFinder-Plus/1.0', ...(init?.headers || {}) } });
-  const text = await r.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch { data = { message: text }; }
-  if (!r.ok) throw new Error(data?.message || `Roblox ${r.status}`);
-  return data;
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const action = String(body?.action || '');
-
-    if (action === 'creator-login') {
-      const username = String(body.username || '').trim();
-      const password = String(body.password || '');
-      if (!username || !password) return NextResponse.json({ ok: false, error: 'missing_credentials' }, { status: 400 });
-      const result = await rpc('rblx_creator_login', { p_username: username, p_password: password });
-      return NextResponse.json(result);
-    }
-
-    if (action === 'resolve') {
-      const username = String(body.username || '').trim();
-      if (!username) return NextResponse.json({ ok: false, error: 'missing_username' }, { status: 400 });
-      const data = await roblox('https://users.roblox.com/v1/usernames/users', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-      });
-      const u = data?.data?.[0];
-      if (!u?.id) return NextResponse.json({ ok: false, error: 'user_not_found' }, { status: 404 });
-      return NextResponse.json({ ok: true, user: u });
-    }
-
-    if (action === 'grant') {
-      const creatorUsername = String(body.creatorUsername || '').trim();
-      const password = String(body.password || '');
-      const username = String(body.username || '').trim();
-      if (!creatorUsername || !password || !username) return NextResponse.json({ ok: false, error: 'missing_fields' }, { status: 400 });
-      const data = await roblox('https://users.roblox.com/v1/usernames/users', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-      });
-      const u = data?.data?.[0];
-      if (!u?.id) return NextResponse.json({ ok: false, error: 'user_not_found' }, { status: 404 });
-      const result = await rpc('rblx_creator_grant', {
-        p_username: creatorUsername,
-        p_password: password,
-        p_user_id: Number(u.id),
-        p_note: String(body.note || '').slice(0, 300) || null,
-      });
-      return NextResponse.json({ ...result, user: u });
-    }
-
-    if (action === 'start-verification') {
-      const userId = Number(body.userId);
-      if (!Number.isInteger(userId) || userId <= 0) return NextResponse.json({ ok: false, error: 'invalid_user_id' }, { status: 400 });
-      return NextResponse.json(await rpc('rblx_plus_start', { p_user_id: userId }));
-    }
-
-    if (action === 'verify') {
-      const userId = Number(body.userId);
-      const code = String(body.code || '').trim();
-      if (!Number.isInteger(userId) || userId <= 0 || !code) return NextResponse.json({ ok: false, error: 'missing_verification' }, { status: 400 });
-      const profile = await roblox(`https://users.roblox.com/v1/users/${userId}`);
-      const description = String(profile?.description || '');
-      if (!description.toUpperCase().includes(code.toUpperCase())) {
-        return NextResponse.json({ ok: false, error: 'code_not_in_profile' });
-      }
-      return NextResponse.json(await rpc('rblx_plus_verify', { p_user_id: userId, p_code: code }));
-    }
-
-    if (action === 'status') {
-      const userId = Number(body.userId);
-      if (!Number.isInteger(userId) || userId <= 0) return NextResponse.json({ plus: false }, { status: 400 });
-      return NextResponse.json(await rpc('rblx_plus_status', { p_user_id: userId }));
-    }
-
-    return NextResponse.json({ ok: false, error: 'unknown_action' }, { status: 400 });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'creator_api_failed' }, { status: 500 });
-  }
-}
+export async function POST(req:NextRequest){try{const body=await req.json();const action=String(body?.action||'');
+ if(action==='creator-login'){const username=String(body.username||'').trim();const password=String(body.password||'');const expected=process.env.CREATOR_PASSWORD;if(!expected)return NextResponse.json({ok:false,error:'creator_auth_not_configured'},{status:503});if(username!==CREATOR||password!==expected)return NextResponse.json({ok:false,error:'invalid_creator_credentials'},{status:401});const payload=`${CREATOR}|${Date.now()+1000*60*60*12}`;const token=`${btoa(payload)}.${await sign(payload)}`;const res=NextResponse.json({ok:true,creator:CREATOR});res.cookies.set(SESSION_COOKIE,token,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge:60*60*12});return res}
+ if(action==='resolve'){const username=String(body.username||'').trim();if(!username)return NextResponse.json({ok:false,error:'missing_username'},{status:400});const data=await roblox('https://users.roblox.com/v1/usernames/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usernames:[username],excludeBannedUsers:false})});const u=data?.data?.[0];if(!u?.id)return NextResponse.json({ok:false,error:'user_not_found'},{status:404});return NextResponse.json({ok:true,user:u})}
+ if(action==='grant'){if(!(await verifySession(req)))return NextResponse.json({ok:false,error:'creator_login_required'},{status:401});const username=String(body.username||'').trim();if(!username)return NextResponse.json({ok:false,error:'missing_username'},{status:400});const data=await roblox('https://users.roblox.com/v1/usernames/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usernames:[username],excludeBannedUsers:false})});const u=data?.data?.[0];if(!u?.id)return NextResponse.json({ok:false,error:'user_not_found'},{status:404});const result=await rpc('rblx_creator_grant',{p_username:CREATOR,p_user_id:Number(u.id),p_note:String(body.note||'RBLXFinder Plus').slice(0,300)});return NextResponse.json({...result,user:u})}
+ if(action==='start-verification'){const userId=Number(body.userId);if(!Number.isInteger(userId)||userId<=0)return NextResponse.json({ok:false,error:'invalid_user_id'},{status:400});return NextResponse.json(await rpc('rblx_plus_start',{p_user_id:userId}))}
+ if(action==='verify'){const userId=Number(body.userId);const code=String(body.code||'').trim();if(!Number.isInteger(userId)||userId<=0||!code)return NextResponse.json({ok:false,error:'missing_verification'},{status:400});const profile=await roblox(`https://users.roblox.com/v1/users/${userId}`);const description=String(profile?.description||'');if(!description.toUpperCase().includes(code.toUpperCase()))return NextResponse.json({ok:false,error:'code_not_in_profile'});return NextResponse.json(await rpc('rblx_plus_verify',{p_user_id:userId,p_code:code}))}
+ if(action==='status'){const userId=Number(body.userId);if(!Number.isInteger(userId)||userId<=0)return NextResponse.json({plus:false},{status:400});return NextResponse.json(await rpc('rblx_plus_status',{p_user_id:userId}))}
+ if(action==='creator-logout'){const res=NextResponse.json({ok:true});res.cookies.set(SESSION_COOKIE,'',{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge:0});return res}
+ return NextResponse.json({ok:false,error:'unknown_action'},{status:400});
+ }catch(e){return NextResponse.json({ok:false,error:e instanceof Error?e.message:'creator_api_failed'},{status:500})}}
