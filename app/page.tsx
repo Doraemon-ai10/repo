@@ -9,7 +9,18 @@ const rbx=(action:string,body:any)=>fetch('/api/roblox',{method:'POST',headers:{
 const visitor=()=>{if(typeof window==='undefined')return 'server';let x=localStorage.getItem('rblx_visitor_id');if(!x){x=crypto.randomUUID();localStorage.setItem('rblx_visitor_id',x)}return x};
 
 const presets:any={
- 'iPhone 11':[188,0,48],'iPhone 13':[194,0,49],'iPhone 15 Pro':[200,0,50],'Samsung Galaxy A55':[184,480,48],'Samsung Galaxy S24':[192,520,49],'OPPO Reno 11':[186,480,48],'OPPO Find X7':[194,520,50],'Xiaomi Redmi Note 13':[182,480,48],'vivo V30':[188,480,48],'PC 1080p 60 FPS':[160,800,42],'PC 1080p 144 FPS':[175,800,44],'PC 1440p 144 FPS':[185,900,45]
+ 'iPhone 11':[188,0,48],'iPhone 13':[194,0,49],'iPhone 15 Pro':[200,0,50],
+ 'Samsung Galaxy A10':[176,420,46],'Samsung Galaxy A20':[178,420,46],'Samsung Galaxy A30':[180,420,47],'Samsung Galaxy A50':[184,440,47],'Samsung Galaxy A51':[186,440,48],'Samsung Galaxy A52':[188,450,48],'Samsung Galaxy A53':[190,480,49],'Samsung Galaxy A54':[192,480,49],'Samsung Galaxy A55':[184,480,48],
+ 'Samsung Galaxy S20':[190,480,48],'Samsung Galaxy S21':[194,480,49],'Samsung Galaxy S22':[196,520,49],'Samsung Galaxy S23':[198,520,50],'Samsung Galaxy S24':[192,520,49],
+ 'OPPO A3s':[174,420,45],'OPPO A5s':[176,420,46],'OPPO A9 2020':[180,440,47],'OPPO A12':[178,440,46],'OPPO A15':[180,440,47],'OPPO A16':[182,450,47],'OPPO A31':[184,450,48],'OPPO A53':[186,480,48],'OPPO A54':[184,480,48],'OPPO A57':[188,480,48],'OPPO A58':[190,480,49],'OPPO A74':[190,480,49],'OPPO A76':[192,480,49],'OPPO A77':[192,480,49],'OPPO A78':[194,480,49],'OPPO A79':[194,520,50],'OPPO A96':[196,520,50],'OPPO A98':[196,520,50],
+ 'OPPO Reno 5':[184,480,48],'OPPO Reno 6':[186,480,48],'OPPO Reno 7':[188,480,48],'OPPO Reno 8':[190,480,49],'OPPO Reno 10':[192,480,49],'OPPO Reno 11':[186,480,48],'OPPO Reno 12':[194,520,50],'OPPO Find X5':[192,520,49],'OPPO Find X6':[194,520,50],'OPPO Find X7':[194,520,50],
+ 'Xiaomi Redmi 9':[176,440,46],'Xiaomi Redmi 10':[180,450,47],'Xiaomi Redmi Note 10':[182,480,48],'Xiaomi Redmi Note 11':[184,480,48],'Xiaomi Redmi Note 12':[186,480,49],'Xiaomi Redmi Note 13':[182,480,48],'Xiaomi Redmi Note 14':[190,520,49],'Xiaomi Poco X3':[186,480,48],'Xiaomi Poco X5':[190,480,49],'Xiaomi Poco X6':[194,520,50],
+ 'vivo Y20':[176,420,46],'vivo Y21':[178,440,46],'vivo Y22':[180,440,47],'vivo Y35':[184,480,48],'vivo V23':[186,480,48],'vivo V25':[188,480,49],'vivo V27':[190,480,49],'vivo V29':[192,520,49],'vivo V30':[188,480,48],'vivo V40':[194,520,50],
+ 'realme C21':[176,420,46],'realme C25':[180,440,47],'realme C35':[184,480,48],'realme C55':[188,480,49],'realme 8':[184,480,48],'realme 9':[188,480,49],'realme 10':[190,480,49],'realme 11':[192,520,50],'realme 12':[194,520,50],
+ 'Huawei Nova 5T':[184,480,48],'Huawei Nova 7i':[182,480,48],'Huawei Nova 8i':[186,480,48],'Huawei P30':[188,480,49],'Huawei P40':[190,480,49],
+ 'OnePlus Nord N10':[184,480,48],'OnePlus Nord N20':[188,480,49],'OnePlus Nord 2':[190,480,49],'OnePlus 9':[194,520,50],'OnePlus 11':[198,520,50],
+ 'iPad 9':[188,0,48],'iPad 10':[192,0,49],'iPad Air 4':[194,0,49],'iPad Air 5':[196,0,50],'iPad Pro 11':[198,0,50],
+ 'PC 1080p 60 FPS':[160,800,42],'PC 1080p 144 FPS':[175,800,44],'PC 1440p 144 FPS':[185,900,45]
 };
 
 function Icon({children}:{children:React.ReactNode}){return <span className="ico">{children}</span>}
