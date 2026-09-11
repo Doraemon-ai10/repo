@@ -4,6 +4,7 @@ import SiteFooter from '@/components/SiteFooter';
 import CreatorLinks from '@/components/CreatorLinks';
 import GamingExtras from '@/components/GamingExtras';
 import SettingsCenter from '@/components/SettingsCenter';
+import AccountCenter from '@/components/AccountCenter';
 import PWARegister from './PWARegister';
 import './globals.css';
 
@@ -12,25 +13,12 @@ export const metadata: Metadata = {
   description: 'Roblox and Free Fire tools by Noobie',
   manifest: '/manifest.webmanifest',
   themeColor: '#071326',
-  icons: {
-    icon: '/rblxfinder-icon.webp',
-    shortcut: '/rblxfinder-icon.webp',
-    apple: '/rblxfinder-icon.webp',
-  },
+  icons: { icon: '/rblxfinder-icon.webp', shortcut: '/rblxfinder-icon.webp', apple: '/rblxfinder-icon.webp' },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="vi">
-      <body>
-        {children}
-        <CreatorLinks />
-        <GamingExtras />
-        <SiteFooter />
-        <AIAssistantMount />
-        <SettingsCenter />
-        <PWARegister />
-      </body>
-    </html>
-  );
+  return <html lang="vi"><body>
+    {children}
+    <CreatorLinks /><GamingExtras /><SiteFooter /><AIAssistantMount /><SettingsCenter /><AccountCenter /><PWARegister />
+  </body></html>;
 }
