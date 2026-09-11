@@ -1,0 +1,23 @@
+appId: com.noobie.rblxfinder
+productName: RBLXFinder
+artifactName: RBLXFinder-Noobie-Setup-${version}.${ext}
+publisherName: Noobie
+asar: true
+files:
+  - electron/**
+  - .next/standalone/**
+  - .next/static/**
+  - public/**
+  - package.json
+  - '!node_modules/**'
+win:
+  target:
+    - nsis
+  requestedExecutionLevel: user
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: RBLXFinder
+  runAfterFinish: true
