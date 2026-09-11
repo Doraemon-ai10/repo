@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:theme="@style/AppTheme" android:label="RBLXFinder — Noobie" android:usesCleartextTraffic="false" android:resizeableActivity="true" android:hardwareAccelerated="true" android:allowBackup="true">
+    <application android:theme="@style/AppTheme" android:label="RBLXFinder — Noobie" android:icon="@drawable/rblxfinder_icon" android:roundIcon="@drawable/rblxfinder_icon" android:usesCleartextTraffic="false" android:resizeableActivity="true" android:hardwareAccelerated="true" android:allowBackup="true">
         <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
