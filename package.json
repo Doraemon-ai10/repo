@@ -25,7 +25,28 @@
   },
   "build": {
     "appId": "com.noobie.rblxfinder",
-    "productName": "RBLXFinder",
-    "publisherName": "Noobie"
+    "productName": "RBLXFinder — Noobie Gaming Hub",
+    "publisherName": "Noobie",
+    "files": [
+      "electron/**/*",
+      ".next/standalone/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "RBLXFinder-Noobie-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RBLXFinder — Noobie"
+    }
   }
 }
