@@ -3,6 +3,7 @@ import AIAssistantMount from '@/components/AIAssistantMount';
 import SiteFooter from '@/components/SiteFooter';
 import CreatorLinks from '@/components/CreatorLinks';
 import GamingExtras from '@/components/GamingExtras';
+import SettingsCenter from '@/components/SettingsCenter';
 import PWARegister from './PWARegister';
 import './globals.css';
 
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <GamingExtras />
         <SiteFooter />
         <AIAssistantMount />
+        <SettingsCenter />
         <PWARegister />
       </body>
     </html>
