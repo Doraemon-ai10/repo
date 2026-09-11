@@ -14,16 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair malformed template literal
+      - name: Repair malformed template literals
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('app/page.tsx')
-          s=p.read_text()
-          old='const styles=\\\\`'
-          if old in s:
-              s=s.replace(old,'const styles=`',1)
-              p.write_text(s)
+          import re
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          # Fix one or more stray backslashes immediately before template-literal backticks.
+          fixed = re.sub(r'(?m)(const styles=)\\+`', r'\1`', s)
+          fixed = re.sub(r'(?m)^\\+`;', '`;', fixed)
+          if fixed != s:
+              p.write_text(fixed)
               print('Repaired malformed template literal')
           else:
               print('No malformed template literal found')
