@@ -12,6 +12,16 @@ android {
         versionName = "2.0.0"
     }
 
+    // Keep Java and Kotlin bytecode targets identical for Gradle/Kotlin 2.x.
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     val releaseStore = rootProject.file("release.keystore")
     if (releaseStore.exists()) {
         signingConfigs {
