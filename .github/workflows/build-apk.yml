@@ -48,10 +48,7 @@ jobs:
             "iconUrl": "https://repo-ttdo.vercel.app/icon.svg",
             "maskableIconUrl": "https://repo-ttdo.vercel.app/icon.svg",
             "splashScreenFadeOutDuration": 300,
-            "signingKey": {
-              "path": "android.keystore",
-              "alias": "rblxfinder"
-            },
+            "signingKey": {"path":"android.keystore","alias":"rblxfinder"},
             "appVersionName": "1.0.0",
             "appVersionCode": 1,
             "shortcuts": [],
@@ -78,30 +75,31 @@ jobs:
           BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
           BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
         run: |
-          docker run --rm \
-            -v "$PWD":/work \
-            -w /work \
+          docker run --rm --entrypoint /bin/bash \
+            -v "$PWD":/work -w /work \
             ghcr.io/googlechromelabs/bubblewrap:latest \
-            update --manifest=/work/twa-manifest.json
+            -lc 'set -e; SDKMANAGER=$(find / -type f -name sdkmanager 2>/dev/null | head -1); yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; bubblewrap update --manifest=/work/twa-manifest.json --skipVersionUpgrade'
 
       - name: Build signed APK
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
           BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
         run: |
-          docker run --rm \
-            -v "$PWD":/work \
-            -w /work \
+          docker run --rm --entrypoint /bin/bash \
+            -v "$PWD":/work -w /work \
             ghcr.io/googlechromelabs/bubblewrap:latest \
-            build --manifest=/work/twa-manifest.json --skipPwaValidation
+            -lc 'set -e; SDKMANAGER=$(find / -type f -name sdkmanager 2>/dev/null | head -1); yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; bubblewrap build --manifest=/work/twa-manifest.json --skipPwaValidation'
 
       - name: Collect APK
         run: |
+          set -e
           mkdir -p apk-output
-          find . -name '*signed.apk' -o -name '*.apk' | head -20
-          APK=$(find . -name 'app-release-signed.apk' | head -1)
+          echo "Generated APK files:"
+          find . -type f -name '*.apk' -print
+          APK=$(find . -type f -name '*.apk' | head -1)
           test -n "$APK"
           cp "$APK" apk-output/RBLXFinder-Noobie-v1.0.0.apk
+          ls -lh apk-output/RBLXFinder-Noobie-v1.0.0.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
