@@ -1,0 +1,48 @@
+name: RBLXFinder Native Smoke Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/app/src/main/assets/index.html'
+      - 'android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt'
+      - 'android/app/build.gradle.kts'
+      - 'android/app/src/main/AndroidManifest.xml'
+      - '.github/workflows/native-smoke-test.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate native source
+        run: |
+          set -eux
+          test -s android/app/src/main/assets/index.html
+          test -s android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+          grep -q 'com.noobie.rblxfinder' android/app/build.gradle.kts
+          grep -q 'rblxfinder-icon.webp' android/app/src/main/assets/index.html
+          grep -q 'rblxfinder_user_data' android/app/src/main/assets/index.html
+          grep -q 'auth/v1' android/app/src/main/assets/index.html
+          grep -q 'Free Fire' android/app/src/main/assets/index.html
+          grep -q 'RBLXFinder' android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+      - name: Check JavaScript syntax
+        run: |
+          set -eux
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('android/app/src/main/assets/index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script>(.*?)</script>',html,re.S)
+          assert scripts, 'No inline JavaScript found'
+          Path('/tmp/native-app.js').write_text('\n'.join(scripts),encoding='utf-8')
+          print('script bytes:',len(Path('/tmp/native-app.js').read_bytes()))
+          PY
+          node --check /tmp/native-app.js
+      - name: Check Kotlin syntax markers
+        run: |
+          set -eux
+          grep -q 'javaScriptEnabled = true' android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+          grep -q 'domStorageEnabled = true' android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+          grep -q 'loadUrl("file:///android_asset/index.html")' android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
