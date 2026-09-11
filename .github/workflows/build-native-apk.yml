@@ -9,7 +9,7 @@ on:
       - '.github/workflows/build-native-apk.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android:
@@ -58,7 +58,7 @@ jobs:
           unzip -t "$APK" >/dev/null
           mkdir -p apk-output
           cp "$APK" apk-output/RBLXFinder-Noobie-v2.0.0.apk
-          sha256sum apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          sha256sum apk-output/RBLXFinder-Noobie-v2.0.0.apk | tee apk-output/SHA256.txt
           ls -lh apk-output/RBLXFinder-Noobie-v2.0.0.apk
       - name: Upload verified APK
         uses: actions/upload-artifact@v4
@@ -67,3 +67,19 @@ jobs:
           path: apk-output/RBLXFinder-Noobie-v2.0.0.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish verified APK to repository
+        run: |
+          set -eux
+          mkdir -p public/apk
+          cp android/app/build/outputs/apk/release/app-release.apk public/apk/RBLXFinder-Noobie-v2.0.0.apk
+          sha256sum public/apk/RBLXFinder-Noobie-v2.0.0.apk > public/apk/RBLXFinder-Noobie-v2.0.0.sha256
+          cat > public/apk/README.txt <<'EOF'
+          RBLXFinder Native Android APK
+          Version: 2.0.0
+          This APK was built and verified by GitHub Actions.
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/apk/RBLXFinder-Noobie-v2.0.0.apk public/apk/RBLXFinder-Noobie-v2.0.0.sha256 public/apk/README.txt
+          git diff --cached --quiet || git commit -m "Publish verified RBLXFinder v2.0.0 APK"
+          git push origin HEAD:main
