@@ -1,0 +1,48 @@
+name: Build RBLXFinder Windows App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build local Next runtime
+        run: npm run build
+
+      - name: Prepare standalone assets
+        shell: pwsh
+        run: |
+          if (Test-Path .next/standalone/public) { Remove-Item -Recurse -Force .next/standalone/public }
+          if (Test-Path .next/standalone/.next/static) { Remove-Item -Recurse -Force .next/standalone/.next/static }
+          Copy-Item -Recurse public .next/standalone/public
+          New-Item -ItemType Directory -Force .next/standalone/.next/static | Out-Null
+          Copy-Item -Recurse .next/static/* .next/standalone/.next/static
+
+      - name: Build Windows installer
+        run: npx electron-builder --win nsis --x64
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: RBLXFinder-Windows-Installer
+          path: dist/RBLXFinder-Noobie-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30
