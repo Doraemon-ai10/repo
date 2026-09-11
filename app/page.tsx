@@ -72,3 +72,5 @@ const styles=\`.site-avatar{width:92px;height:92px;border-radius:24px;object-fit
 if(typeof document!=='undefined'){let s=document.getElementById('rblx-main-styles');if(!s){s=document.createElement('style');s.id='rblx-main-styles';s.textContent=styles;document.head.appendChild(s)}}
 
 /* RBLXFINDER_UI_V3 */
+
+/* RBLXFINDER_UI_V2 */
