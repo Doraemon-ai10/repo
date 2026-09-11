@@ -23,13 +23,26 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Build native release APK
-        uses: gradle/gradle-build-action@v3
+      - name: Set up Gradle 8.10
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10'
-          arguments: ':app:assembleRelease --no-daemon --stacktrace'
-          build-root-directory: android
+
+      - name: Verify Android project
+        run: |
+          set -e
+          test -f android/settings.gradle.kts
+          test -f android/build.gradle.kts
+          test -f android/app/build.gradle.kts
+          test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+          test -f android/app/src/main/assets/index.html
+          printf '%s\n' 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' 'org.gradle.parallel=true' 'org.gradle.caching=true' 'android.useAndroidX=true' 'android.nonTransitiveRClass=true' > android/gradle.properties
+
+      - name: Build native release APK
+        run: gradle -p android :app:assembleRelease --no-daemon --stacktrace
 
       - name: Prepare artifact
         run: |
