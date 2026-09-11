@@ -70,24 +70,20 @@ jobs:
           JSON
 
       - name: Generate Android project
-        env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
-          BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
         run: |
           docker run --rm --entrypoint /bin/bash \
             -v "$PWD":/work -w /work \
             ghcr.io/googlechromelabs/bubblewrap:latest \
-            -lc 'set -e; SDKMANAGER=$(find / -type f -name sdkmanager 2>/dev/null | head -1); yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; bubblewrap update --manifest=/work/twa-manifest.json --skipVersionUpgrade'
+            -lc 'set -e; bubblewrap update --manifest=/work/twa-manifest.json --skipVersionUpgrade'
 
       - name: Build signed APK
-        env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
-          BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
         run: |
           docker run --rm --entrypoint /bin/bash \
+            -e BUBBLEWRAP_KEYSTORE_PASSWORD=rblxfinder-build \
+            -e BUBBLEWRAP_KEY_PASSWORD=rblxfinder-build \
             -v "$PWD":/work -w /work \
             ghcr.io/googlechromelabs/bubblewrap:latest \
-            -lc 'set -e; SDKMANAGER=$(find / -type f -name sdkmanager 2>/dev/null | head -1); yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true; bubblewrap build --manifest=/work/twa-manifest.json --skipPwaValidation'
+            -lc 'set -e; yes | bubblewrap build --manifest=/work/twa-manifest.json --skipPwaValidation'
 
       - name: Collect APK
         run: |
