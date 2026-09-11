@@ -1,0 +1,46 @@
+name: Build RBLXFinder Native Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-native-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build native release APK
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: '8.10'
+          arguments: ':app:assembleRelease --no-daemon --stacktrace'
+          build-root-directory: android
+
+      - name: Prepare artifact
+        run: |
+          set -e
+          mkdir -p apk-output
+          cp android/app/build/outputs/apk/release/app-release.apk apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          ls -lh apk-output/RBLXFinder-Noobie-v2.0.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RBLXFinder-Native-Android-APK
+          path: apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          retention-days: 30
