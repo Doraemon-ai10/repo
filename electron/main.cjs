@@ -16,7 +16,7 @@ function waitForServer(url, timeout = 30000) {
     const check = () => {
       const req = http.get(url, res => { res.resume(); resolve(); });
       req.on('error', () => {
-        if (Date.now() - started > timeout) reject(new Error('Local app server did not start'));
+        if (Date.now() - started > timeout) reject(new Error('Local RBLXFinder server did not start'));
         else setTimeout(check, 250);
       });
       req.setTimeout(1000, () => req.destroy());
@@ -29,11 +29,17 @@ async function startServer() {
   const cwd = path.dirname(serverPath());
   serverProcess = spawn(process.execPath, [serverPath()], {
     cwd,
-    env: { ...process.env, PORT: String(PORT), HOSTNAME: '127.0.0.1', NODE_ENV: 'production' },
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      PORT: String(PORT),
+      HOSTNAME: '127.0.0.1',
+      NODE_ENV: 'production',
+    },
     windowsHide: true,
     stdio: 'ignore',
   });
-  await waitForServer(`http://127.0.0.1:${PORT}/tools/`);
+  await waitForServer(`http://127.0.0.1:${PORT}/`);
 }
 
 async function createWindow() {
@@ -46,9 +52,11 @@ async function createWindow() {
     title: 'RBLXFinder — Noobie Gaming Hub',
     backgroundColor: '#f8fafc',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
-  await win.loadURL(`http://127.0.0.1:${PORT}/tools/`);
+  win.once('ready-to-show', () => win.show());
+  await win.loadURL(`http://127.0.0.1:${PORT}/`);
 }
 
 app.whenReady().then(createWindow).catch(err => {
