@@ -1,12 +1,12 @@
 name: Build RBLXFinder Native Android APK
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - 'android/**'
       - '.github/workflows/build-native-apk.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,42 +25,40 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Gradle 8.10
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10'
 
-      - name: Verify Android project
+      - name: Verify source
         run: |
-          set -e
-          test -f android/settings.gradle.kts
-          test -f android/build.gradle.kts
-          test -f android/app/build.gradle.kts
-          test -f android/app/src/main/AndroidManifest.xml
-          test -f android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
-          test -f android/app/src/main/assets/index.html
-          printf '%s\n' 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' 'org.gradle.parallel=true' 'org.gradle.caching=true' 'android.useAndroidX=true' 'android.nonTransitiveRClass=true' > android/gradle.properties
+          set -eux
+          test -s android/settings.gradle.kts
+          test -s android/build.gradle.kts
+          test -s android/app/build.gradle.kts
+          test -s android/app/src/main/AndroidManifest.xml
+          test -s android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
+          test -s android/app/src/main/assets/index.html
 
-      - name: Build native release APK
+      - name: Build release APK
         run: gradle -p android :app:assembleRelease --no-daemon --stacktrace
 
       - name: Verify APK
         run: |
-          set -e
-          test -s android/app/build/outputs/apk/release/app-release.apk
-          file android/app/build/outputs/apk/release/app-release.apk
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Prepare artifact
-        run: |
-          set -e
+          set -eux
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          file "$APK"
+          unzip -t "$APK" >/dev/null
           mkdir -p apk-output
-          cp android/app/build/outputs/apk/release/app-release.apk apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          cp "$APK" apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          sha256sum apk-output/RBLXFinder-Noobie-v2.0.0.apk
           ls -lh apk-output/RBLXFinder-Noobie-v2.0.0.apk
 
-      - name: Upload APK
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: RBLXFinder-Native-Android-APK
+          name: RBLXFinder-Noobie-v2.0.0-APK
           path: apk-output/RBLXFinder-Noobie-v2.0.0.apk
+          if-no-files-found: error
           retention-days: 30
