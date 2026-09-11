@@ -36,8 +36,19 @@ jobs:
           test -s android/app/src/main/AndroidManifest.xml
           test -s android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
           test -s android/app/src/main/assets/index.html
-      - name: Build release APK
-        run: gradle -p android :app:assembleRelease --no-daemon --stacktrace
+      - name: Create release signing key
+        run: |
+          set -eux
+          keytool -genkeypair -v \
+            -keystore android/release.keystore \
+            -alias rblxfinder \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass rblxfinder-build -keypass rblxfinder-build \
+            -dname "CN=Noobie,O=RBLXFinder,C=VN"
+      - name: Build signed release APK
+        run: |
+          set -eux
+          gradle -p android :app:assembleRelease --no-daemon --stacktrace
       - name: Verify APK
         run: |
           set -eux
