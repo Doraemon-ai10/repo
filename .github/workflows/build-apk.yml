@@ -1,0 +1,111 @@
+name: Build RBLXFinder APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare TWA signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore android.keystore \
+            -alias rblxfinder \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass rblxfinder-build \
+            -keypass rblxfinder-build \
+            -dname "CN=Noobie,O=RBLXFinder,C=VN"
+
+      - name: Create Bubblewrap manifest
+        run: |
+          cat > twa-manifest.json <<'JSON'
+          {
+            "packageId": "com.noobie.rblxfinder",
+            "host": "repo-ttdo.vercel.app",
+            "name": "RBLXFinder - Noobie Gaming Hub",
+            "launcherName": "RBLXFinder",
+            "display": "standalone",
+            "themeColor": "#111827",
+            "themeColorDark": "#111827",
+            "navigationColor": "#111827",
+            "navigationColorDark": "#111827",
+            "navigationDividerColor": "#111827",
+            "navigationDividerColorDark": "#111827",
+            "backgroundColor": "#f8fafc",
+            "enableNotifications": false,
+            "startUrl": "/tools/",
+            "iconUrl": "https://repo-ttdo.vercel.app/icon.svg",
+            "maskableIconUrl": "https://repo-ttdo.vercel.app/icon.svg",
+            "splashScreenFadeOutDuration": 300,
+            "signingKey": {
+              "path": "android.keystore",
+              "alias": "rblxfinder"
+            },
+            "appVersionName": "1.0.0",
+            "appVersionCode": 1,
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://repo-ttdo.vercel.app/manifest.webmanifest",
+            "fallbackType": "customtabs",
+            "features": {},
+            "alphaDependencies": {"enabled": false},
+            "enableSiteSettingsShortcut": true,
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://repo-ttdo.vercel.app/",
+            "minSdkVersion": 23,
+            "orientation": "portrait",
+            "fingerprints": [],
+            "additionalTrustedOrigins": [],
+            "retainedBundles": [],
+            "appVersion": "1.0.0"
+          }
+          JSON
+
+      - name: Generate Android project
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
+          BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
+        run: |
+          docker run --rm \
+            -v "$PWD":/work \
+            -w /work \
+            ghcr.io/googlechromelabs/bubblewrap:latest \
+            update --manifest=/work/twa-manifest.json
+
+      - name: Build signed APK
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: rblxfinder-build
+          BUBBLEWRAP_KEY_PASSWORD: rblxfinder-build
+        run: |
+          docker run --rm \
+            -v "$PWD":/work \
+            -w /work \
+            ghcr.io/googlechromelabs/bubblewrap:latest \
+            build --manifest=/work/twa-manifest.json --skipPwaValidation
+
+      - name: Collect APK
+        run: |
+          mkdir -p apk-output
+          find . -name '*signed.apk' -o -name '*.apk' | head -20
+          APK=$(find . -name 'app-release-signed.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" apk-output/RBLXFinder-Noobie-v1.0.0.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RBLXFinder-Android-APK
+          path: apk-output/RBLXFinder-Noobie-v1.0.0.apk
+          retention-days: 30
