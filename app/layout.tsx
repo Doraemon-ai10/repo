@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import AIAssistantMount from '@/components/AIAssistantMount';
 import SiteFooter from '@/components/SiteFooter';
 import CreatorLinks from '@/components/CreatorLinks';
+import GamingExtras from '@/components/GamingExtras';
 import PWARegister from './PWARegister';
 import './globals.css';
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <CreatorLinks />
+        <GamingExtras />
         <SiteFooter />
         <AIAssistantMount />
         <PWARegister />
