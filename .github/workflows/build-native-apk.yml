@@ -17,19 +17,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10'
-
       - name: Verify source
         run: |
           set -eux
@@ -39,10 +36,8 @@ jobs:
           test -s android/app/src/main/AndroidManifest.xml
           test -s android/app/src/main/java/com/noobie/rblxfinder/MainActivity.kt
           test -s android/app/src/main/assets/index.html
-
       - name: Build release APK
         run: gradle -p android :app:assembleRelease --no-daemon --stacktrace
-
       - name: Verify APK
         run: |
           set -eux
@@ -54,7 +49,6 @@ jobs:
           cp "$APK" apk-output/RBLXFinder-Noobie-v2.0.0.apk
           sha256sum apk-output/RBLXFinder-Noobie-v2.0.0.apk
           ls -lh apk-output/RBLXFinder-Noobie-v2.0.0.apk
-
       - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
