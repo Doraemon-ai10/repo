@@ -8,10 +8,15 @@ import PWARegister from './PWARegister';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RBLXFinder',
+  title: 'RBLXFinder — Noobie Gaming Hub',
   description: 'Roblox and Free Fire tools by Noobie',
   manifest: '/manifest.webmanifest',
-  themeColor: '#111827',
+  themeColor: '#071326',
+  icons: {
+    icon: '/rblxfinder-icon.webp',
+    shortcut: '/rblxfinder-icon.webp',
+    apple: '/rblxfinder-icon.webp',
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
