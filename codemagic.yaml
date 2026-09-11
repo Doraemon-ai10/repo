@@ -2,10 +2,7 @@ workflows:
   rblxfinder-android-debug:
     name: RBLXFinder Android APK (online build)
     max_build_duration: 60
-    instance_type: linux_x2
-    environment:
-      vars:
-        ANDROID_SDK_ROOT: /opt/android-sdk
+    instance_type: mac_mini_m2
     scripts:
       - name: Prepare Android SDK path
         script: |
