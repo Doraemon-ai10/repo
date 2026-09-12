@@ -5,6 +5,7 @@ import CreatorLinks from '@/components/CreatorLinks';
 import GamingExtras from '@/components/GamingExtras';
 import SettingsCenter from '@/components/SettingsCenter';
 import AccountCenter from '@/components/AccountCenter';
+import SupportCenter from '@/components/SupportCenter';
 import PWARegister from './PWARegister';
 import './globals.css';
 
@@ -19,6 +20,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="vi"><body>
     {children}
-    <CreatorLinks /><GamingExtras /><SiteFooter /><AIAssistantMount /><SettingsCenter /><AccountCenter /><PWARegister />
+    <CreatorLinks /><GamingExtras /><SupportCenter /><SiteFooter /><AIAssistantMount /><SettingsCenter /><AccountCenter /><PWARegister />
   </body></html>;
 }
