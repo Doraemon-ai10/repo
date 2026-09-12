@@ -5,6 +5,7 @@ type Game={id?:number;universeId:number;rootPlaceId:number;name:string;descripti
 type User={id:number;name:string;displayName:string;avatarUrl?:string;profileUrl?:string};
 type Tab='home'|'roblox'|'robloxGames'|'robloxGame'|'freefire'|'daily'|'compare';
 const ffPresets=[['OPPO A9 2020',184,47,440],['iPhone 11',188,48,0],['iPhone 13',194,49,0],['iPhone 15 Pro',200,50,0],['Samsung A54',192,49,480],['Samsung S24',192,49,520],['Xiaomi Redmi Note 13',182,48,480],['vivo V40',194,50,520],['realme 12',194,50,520]] as const;
+
 export default function ToolsHub(){
  const [tab,setTab]=useState<Tab>('home');const [busy,setBusy]=useState(false);const [err,setErr]=useState('');
  const [rbName,setRbName]=useState('');const [user,setUser]=useState<User|null>(null);const [gameQ,setGameQ]=useState('');const [games,setGames]=useState<Game[]>([]);const [selected,setSelected]=useState<Game|null>(null);const [servers,setServers]=useState<any[]>([]);
