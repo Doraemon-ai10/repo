@@ -1,0 +1,1 @@
+The uploaded image should be used as the site avatar.
