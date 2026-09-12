@@ -1,70 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const cors = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'POST, OPTIONS', 'Access-Control-Allow-Headers':'Content-Type, Authorization' };
-export async function OPTIONS(){ return new NextResponse(null,{status:204,headers:cors}); }
-function json(data:any,status=200){ return NextResponse.json(data,{status,headers:cors}); }
-
-async function roblox(url:string, init?:RequestInit){
-  const r=await fetch(url,{...init,cache:'no-store',headers:{'User-Agent':'RBLXFinder/7.0','Accept':'application/json',...(init?.headers||{})}});
-  const text=await r.text(); let data:any={}; try{data=JSON.parse(text)}catch{data={message:text||'Invalid Roblox response'}}
-  if(!r.ok)throw new Error(`${r.status}: ${data?.message||'Roblox API error'}`); return data;
-}
-
-function normalizeGames(raw:any){
-  const source=Array.isArray(raw?.games)?raw.games:Array.isArray(raw?.data)?raw.data:Array.isArray(raw)?raw:[];
-  const out:any[]=[]; const seen=new Set<number>();
-  for(const v of source){
-    const universeId=Number(v.universeId??v.universeID??v.id);
-    const rootPlaceId=Number(v.rootPlaceId??v.rootPlaceID??v.placeId);
-    const name=String(v.name||v.title||'').trim();
-    if(!Number.isInteger(universeId)||universeId<=0||!Number.isInteger(rootPlaceId)||rootPlaceId<=0||!name||seen.has(universeId))continue;
-    seen.add(universeId);
-    out.push({universeId,rootPlaceId,name,description:v.description||'',playing:Number(v.playing??v.playerCount??0)||0,visits:Number(v.visits??0)||0,creator:v.creator??null});
-  }
-  return out.slice(0,50);
-}
-
-export async function POST(req:NextRequest){try{
- const body=await req.json(); const action=body?.action;
- if(action==='username'){
-  const username=String(body.username||'').trim(); if(!username||username.length>20)return json({error:'Invalid username'},400);
-  return json(await roblox('https://users.roblox.com/v1/usernames/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usernames:[username],excludeBannedUsers:false})}));
- }
- if(action==='avatar'){const id=Number(body.userId);if(!Number.isInteger(id))return json({error:'Invalid userId'},400);return json(await roblox(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=150x150&format=Png&isCircular=true`));}
- if(action==='games'){
-  const q=String(body.query||body.q||'').trim(); if(!q)return json({data:[],games:[]});
-  let games:any[]=[];
-  try{
-   const raw=await roblox(`https://games.roblox.com/v1/games/list?model.keyword=${encodeURIComponent(q)}&model.maxRows=50&model.startRows=0`);
-   games=normalizeGames(raw);
-  }catch{
-   try{
-    const raw=await roblox(`https://apis.roblox.com/search-api/omni-search?searchQuery=${encodeURIComponent(q)}&sessionId=${crypto.randomUUID()}&pageType=all`);
-    games=normalizeGames(raw);
-   }catch{games=[]}
-  }
-  return json({data:games,games});
- }
- if(action==='thumbs'){
-  const ids=Array.isArray(body.universeIds)?body.universeIds.map(Number).filter((n:number)=>Number.isInteger(n)&&n>0).slice(0,50):[];
-  if(!ids.length)return json({data:[]});
-  return json(await roblox(`https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=${ids.join(',')}&countPerUniverse=1&defaults=true&size=768x432&format=Webp&isCircular=false`));
- }
- if(action==='details'){const id=Number(body.universeId);if(!Number.isInteger(id))return json({error:'Invalid universeId'},400);return json(await roblox(`https://games.roblox.com/v1/games?universeIds=${id}`));}
- if(action==='private'){const id=Number(body.universeId);if(!Number.isInteger(id))return json({error:'Invalid universeId'},400);return json(await roblox(`https://games.roblox.com/v1/private-servers/enabled-in-universe/${id}`));}
- if(action==='servers'){
-  let placeId=Number(body.placeId); const universeId=Number(body.universeId);
-  if(!Number.isInteger(placeId)&&Number.isInteger(universeId)){const details=await roblox(`https://games.roblox.com/v1/games?universeIds=${universeId}`);placeId=Number(details?.data?.[0]?.rootPlaceId)}
-  if(!Number.isInteger(placeId)||placeId<=0)return json({error:'Invalid placeId/universeId'},400);
-  let cursor=''; const all:any[]=[]; const seen=new Set<string>();
-  for(let page=0;page<5;page++){
-   const params=new URLSearchParams({sortOrder:'1',excludeFullGames:'true',limit:'100'}); if(cursor)params.set('cursor',cursor);
-   const data=await roblox(`https://games.roblox.com/v1/games/${placeId}/servers/Public?${params}`);
-   for(const s of data?.data||[])if(s?.id&&!seen.has(s.id)){seen.add(s.id);all.push(s)}
-   cursor=data?.nextPageCursor||''; if(!cursor)break;
-  }
-  all.sort((a,b)=>Number(a.playing||0)-Number(b.playing||0));
-  return json({data:all.slice(0,500),placeId});
- }
- throw new Error('Unknown action');
-}catch(e){return json({error:e instanceof Error?e.message:'Roblox API request failed'},502)}}
+const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"};
+export async function OPTIONS(){return new NextResponse(null,{status:204,headers:cors});}
+function json(data:any,status=200){return NextResponse.json(data,{status,headers:cors});}
+async function roblox(url:string,init?:RequestInit){const r=await fetch(url,{...init,cache:'no-store',headers:{'User-Agent':'RBLXFinder/8.0','Accept':'application/json',...(init?.headers||{})}});const text=await r.text();let data:any={};try{data=JSON.parse(text)}catch{data={message:text||'Invalid Roblox response'}}if(!r.ok)throw new Error(`${r.status}: ${data?.message||'Roblox API error'}`);return data;}
+function normalizeGames(raw:any){const groups=Array.isArray(raw?.searchResults)?raw.searchResults:[];const source:any[]=[];for(const group of groups){for(const item of Array.isArray(group?.contents)?group.contents:[]){if(item)source.push(item)}}const direct=source.length?source:(Array.isArray(raw?.games)?raw.games:Array.isArray(raw?.data)?raw.data:Array.isArray(raw)?raw:[]);const out:any[]=[];const seen=new Set<number>();for(const v of direct){const universeId=Number(v.universeId??v.universeID??v.id);const rootPlaceId=Number(v.rootPlaceId??v.rootPlaceID??v.placeId);const name=String(v.name??v.title??'').trim();if(!Number.isInteger(universeId)||universeId<=0||!Number.isInteger(rootPlaceId)||rootPlaceId<=0||!name||seen.has(universeId))continue;seen.add(universeId);out.push({universeId,rootPlaceId,name,description:v.description||'',playing:Number(v.playerCount??v.playing??0)||0,visits:Number(v.visits??0)||0,favorites:Number(v.totalUpVotes??v.favorites??0)||0,creator:v.creator??null});}return out;}
+async function enrichGames(games:any[]){const ids=games.map(g=>g.universeId).filter(Boolean).slice(0,50);if(!ids.length)return games;let details:any={};let thumbs:any={};try{details=await roblox(`https://games.roblox.com/v1/games?universeIds=${ids.join(',')}`)}catch{}try{thumbs=await roblox(`https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=${ids.join(',')}&countPerUniverse=1&defaults=true&size=768x432&format=Webp&isCircular=false`)}catch{}const dm=new Map((details?.data||[]).map((g:any)=>[Number(g.id),g]));const tm=new Map((thumbs?.data||[]).map((g:any)=>[Number(g.targetId),g.imageUrl]));return games.map(g=>{const d:any=dm.get(g.universeId)||{};return {...g,name:d.name||g.name,description:d.description||g.description,rootPlaceId:Number(d.rootPlaceId||g.rootPlaceId),playing:Number(d.playing??g.playing??0),visits:Number(d.visits??g.visits??0),favorites:Number(d.favoritesCount??g.favorites??0),thumbnailUrl:tm.get(g.universeId)||g.thumbnailUrl||''};});}
+export async function POST(req:NextRequest){try{const body=await req.json();const action=body?.action;
+if(action==='username'){const username=String(body.username||'').trim();if(!username||username.length>20)return json({error:'Invalid username'},400);const d=await roblox('https://users.roblox.com/v1/usernames/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usernames:[username],excludeBannedUsers:false})});const u=d?.data?.[0];if(!u)return json({error:'User not found'},404);let avatarUrl='';try{const a=await roblox(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${u.id}&size=150x150&format=Png&isCircular=false`);avatarUrl=a?.data?.[0]?.imageUrl||''}catch{}return json({id:u.id,name:u.name,displayName:u.displayName,avatarUrl,profileUrl:`https://www.roblox.com/users/${u.id}/profile`});}
+if(action==='avatar'){const id=Number(body.userId);if(!Number.isInteger(id))return json({error:'Invalid userId'},400);return json(await roblox(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${id}&size=150x150&format=Png&isCircular=true`));}
+if(action==='games'){const q=String(body.query||body.q||'').trim();if(!q)return json({data:[],games:[]});let games:any[]=[];const sessionId=crypto.randomUUID();let pageToken='';for(let page=0;page<3;page++){const params=new URLSearchParams({searchQuery:q,pageToken,sessionId,pageType:'all'});try{const raw=await roblox(`https://apis.roblox.com/search-api/omni-search?${params}`);games.push(...normalizeGames(raw));const next=String(raw?.nextPageToken||'');if(!next||next===pageToken)break;pageToken=next;}catch{break;}}const seen=new Set<number>();games=games.filter(g=>!seen.has(g.universeId)&&seen.add(g.universeId));games=await enrichGames(games.slice(0,60));return json({data:games,games});}
+if(action==='thumbs'){const ids=Array.isArray(body.universeIds)?body.universeIds.map(Number).filter((n:number)=>Number.isInteger(n)&&n>0).slice(0,50):[];if(!ids.length)return json({data:[]});return json(await roblox(`https://thumbnails.roblox.com/v1/games/multiget/thumbnails?universeIds=${ids.join(',')}&countPerUniverse=1&defaults=true&size=768x432&format=Webp&isCircular=false`));}
+if(action==='details'){const id=Number(body.universeId);if(!Number.isInteger(id))return json({error:'Invalid universeId'},400);return json(await roblox(`https://games.roblox.com/v1/games?universeIds=${id}`));}
+if(action==='private'){const id=Number(body.universeId);if(!Number.isInteger(id))return json({error:'Invalid universeId'},400);return json(await roblox(`https://games.roblox.com/v1/private-servers/enabled-in-universe/${id}`));}
+if(action==='servers'){let placeId=Number(body.placeId);const universeId=Number(body.universeId);if(!Number.isInteger(placeId)&&Number.isInteger(universeId)){const d=await roblox(`https://games.roblox.com/v1/games?universeIds=${universeId}`);placeId=Number(d?.data?.[0]?.rootPlaceId);}if(!Number.isInteger(placeId)||placeId<=0)return json({error:'Invalid placeId/universeId'},400);let cursor='';const all:any[]=[];const seen=new Set<string>();for(let page=0;page<5;page++){const p=new URLSearchParams({sortOrder:'1',excludeFullGames:'true',limit:'100'});if(cursor)p.set('cursor',cursor);const d=await roblox(`https://games.roblox.com/v1/games/${placeId}/servers/Public?${p}`);for(const s of d?.data||[])if(s?.id&&!seen.has(s.id)){seen.add(s.id);all.push(s);}cursor=d?.nextPageCursor||'';if(!cursor)break;}all.sort((a,b)=>Number(a.playing||0)-Number(b.playing||0));return json({data:all.slice(0,500),placeId});}
+return json({error:'Unknown action'},400);
+}catch(e){return json({error:e instanceof Error?e.message:'Roblox API request failed'},502);}}
