@@ -1,6 +1,6 @@
 'use client';
 
-const YOUTUBE_URL = 'https://youtube.com/@noobieroblox_vn?si=WD1ALmE78H02Q_7_';
+const YOUTUBE_URL = 'https://youtube.com/@noobieroblox_vn';
 const DISCORD_URL = 'https://discord.gg/nePuZm3kcu';
 
 function YouTubeIcon() {
@@ -22,22 +22,19 @@ function DiscordIcon() {
 export default function CreatorLinks() {
   return (
     <div className="creator-links" aria-label="Noobie links">
-      <a className="creator-link youtube" href={YOUTUBE_URL} target="_blank" rel="noopener noreferrer" aria-label="Đăng ký kênh YouTube Noobie">
+      <a className="social-icon youtube" href={YOUTUBE_URL} target="_blank" rel="noopener noreferrer" aria-label="YouTube Noobie">
         <YouTubeIcon />
-        <span>Đăng ký YouTube</span>
       </a>
-      <a className="creator-link discord" href={DISCORD_URL} target="_blank" rel="noopener noreferrer" aria-label="Tham gia Discord Noobie">
+      <a className="social-icon discord" href={DISCORD_URL} target="_blank" rel="noopener noreferrer" aria-label="Discord Noobie">
         <DiscordIcon />
-        <span>Tham gia Discord</span>
       </a>
       <style jsx>{`
-        .creator-links { position: fixed; top: 14px; right: 14px; z-index: 10000; display: flex; gap: 8px; }
-        .creator-link { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:14px; color:#fff; text-decoration:none; font:800 12px/1 Inter,system-ui,sans-serif; box-shadow:0 10px 28px #11182722; backdrop-filter:blur(12px); transition:transform .18s ease, box-shadow .18s ease; }
-        .creator-link:hover { transform:translateY(-2px); box-shadow:0 14px 34px #11182733; }
-        .creator-link svg { width:19px; height:19px; flex:none; }
-        .youtube { background:#ff0033; }
-        .discord { background:#5865f2; }
-        @media (max-width:650px) { .creator-links { top:9px; right:9px; gap:6px; } .creator-link { width:42px; height:42px; justify-content:center; padding:0; border-radius:13px; } .creator-link span { display:none; } .creator-link svg { width:20px; height:20px; } }
+        .creator-links{position:fixed;top:14px;right:14px;z-index:10000;display:flex;gap:10px;align-items:center}
+        .social-icon{width:54px;height:54px;display:grid;place-items:center;border-radius:50%;background:#fff;text-decoration:none;border:1px solid #e5e7eb;box-shadow:0 10px 28px #11182720;transition:transform .18s ease,box-shadow .18s ease}
+        .social-icon:hover{transform:scale(1.08) translateY(-1px);box-shadow:0 16px 36px #1118272e}
+        .social-icon svg{width:32px;height:32px;display:block}
+        .youtube{color:#ff0000}.discord{color:#5865f2}
+        @media(max-width:650px){.creator-links{top:9px;right:9px;gap:7px}.social-icon{width:50px;height:50px}.social-icon svg{width:30px;height:30px}}
       `}</style>
     </div>
   );
