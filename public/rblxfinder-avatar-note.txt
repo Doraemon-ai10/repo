@@ -1,0 +1,1 @@
+The exact uploaded avatar is stored in the project image pipeline.
