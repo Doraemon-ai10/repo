@@ -1,5 +1,4 @@
 name: Build RBLXFinder Native Android APK
-
 on:
   workflow_dispatch:
   push:
@@ -7,10 +6,8 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/build-native-apk.yml'
-
 permissions:
   contents: write
-
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -38,21 +35,14 @@ jobs:
           test -s android/app/src/main/assets/index.html
           test -s android/app/src/main/assets/rblxfinder-icon.webp
           test -s android/app/src/main/res/drawable/rblxfinder_icon.webp
-          grep -q 'versionName = "3.1.0"' android/app/build.gradle.kts
+          grep -q 'versionName = "4.0.0"' android/app/build.gradle.kts
           grep -q 'applicationId = "com.noobie.rblxfinder"' android/app/build.gradle.kts
       - name: Create release signing key
         run: |
           set -eux
-          keytool -genkeypair -v \
-            -keystore android/release.keystore \
-            -alias rblxfinder \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass rblxfinder-build -keypass rblxfinder-build \
-            -dname "CN=Noobie,O=RBLXFinder,C=VN"
+          keytool -genkeypair -v -keystore android/release.keystore -alias rblxfinder -keyalg RSA -keysize 2048 -validity 10000 -storepass rblxfinder-build -keypass rblxfinder-build -dname "CN=Noobie,O=RBLXFinder,C=VN"
       - name: Build signed release APK
-        run: |
-          set -eux
-          gradle -p android :app:assembleRelease --no-daemon --stacktrace
+        run: gradle -p android :app:assembleRelease --no-daemon --stacktrace
       - name: Verify APK
         run: |
           set -eux
@@ -61,30 +51,30 @@ jobs:
           file "$APK"
           unzip -t "$APK" >/dev/null
           mkdir -p apk-output
-          cp "$APK" apk-output/RBLXFinder-Noobie-v3.1.0.apk
-          sha256sum apk-output/RBLXFinder-Noobie-v3.1.0.apk | tee apk-output/SHA256.txt
-          ls -lh apk-output/RBLXFinder-Noobie-v3.1.0.apk
+          cp "$APK" apk-output/RBLXFinder-Noobie-v4.0.0.apk
+          sha256sum apk-output/RBLXFinder-Noobie-v4.0.0.apk | tee apk-output/SHA256.txt
+          ls -lh apk-output/RBLXFinder-Noobie-v4.0.0.apk
       - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: RBLXFinder-Noobie-v3.1.0-APK
-          path: apk-output/RBLXFinder-Noobie-v3.1.0.apk
+          name: RBLXFinder-Noobie-v4.0.0-APK
+          path: apk-output/RBLXFinder-Noobie-v4.0.0.apk
           if-no-files-found: error
           retention-days: 30
       - name: Publish verified APK to repository
         run: |
           set -eux
           mkdir -p public/apk
-          cp android/app/build/outputs/apk/release/app-release.apk public/apk/RBLXFinder-Noobie-v3.1.0.apk
-          sha256sum public/apk/RBLXFinder-Noobie-v3.1.0.apk > public/apk/RBLXFinder-Noobie-v3.1.0.sha256
+          cp android/app/build/outputs/apk/release/app-release.apk public/apk/RBLXFinder-Noobie-v4.0.0.apk
+          sha256sum public/apk/RBLXFinder-Noobie-v4.0.0.apk > public/apk/RBLXFinder-Noobie-v4.0.0.sha256
           cat > public/apk/README.txt <<'EOF'
           RBLXFinder Native Android APK
-          Version: 3.1.0
+          Version: 4.0.0
           Application ID: com.noobie.rblxfinder
-          This APK is a native Android app with locally bundled RBLXFinder UI.
+          Native Android app with locally bundled RBLXFinder UI.
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/apk/RBLXFinder-Noobie-v3.1.0.apk public/apk/RBLXFinder-Noobie-v3.1.0.sha256 public/apk/README.txt
-          git diff --cached --quiet || git commit -m "Publish verified RBLXFinder v3.1.0 APK"
+          git add public/apk/RBLXFinder-Noobie-v4.0.0.apk public/apk/RBLXFinder-Noobie-v4.0.0.sha256 public/apk/README.txt
+          git diff --cached --quiet || git commit -m "Publish verified RBLXFinder v4.0.0 APK"
           git push origin HEAD:main
