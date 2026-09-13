@@ -1,85 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-
-type RobloxUser = { id: number; name: string; displayName?: string };
-type LeaderboardRow = { roblox_user_id: number; roblox_username: string; total_robux: number; donation_count: number };
-
-const SB = 'https://mbsnpcdmenfufhbctoek.supabase.co';
-const KEY = 'sb_publishable_rwwoH9hpk6cg3woGveNObw_C00pNZsx';
-const CREATOR_EMAIL = 'giakiet0903dz@gmail.com';
-const CREATOR = 'khoungbell7777';
-const authHeaders = (token?: string) => ({ apikey: KEY, Authorization: `Bearer ${token || KEY}`, 'Content-Type': 'application/json' });
-
-async function creatorApi(body: Record<string, unknown>, token?: string) {
-  const response = await fetch('/api/creator', { method: 'POST', headers: { ...authHeaders(token) }, body: JSON.stringify(body) });
-  const data = await response.json().catch(() => ({}));
-  return { ok: response.ok, data };
-}
-
-async function authPassword(email: string, password: string, signup = false) {
-  const response = await fetch(`${SB}/auth/v1/${signup ? 'signup' : 'token?grant_type=password'}`, {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ email, password }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error_description || data.msg || 'Không thể xác thực tài khoản.');
-  return data;
-}
-
-export default function CreatorPage() {
-  const [email, setEmail] = useState(CREATOR_EMAIL);
-  const [password, setPassword] = useState('');
-  const [token, setToken] = useState('');
-  const [logged, setLogged] = useState(false);
-  const [target, setTarget] = useState('');
-  const [user, setUser] = useState<RobloxUser | null>(null);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [board, setBoard] = useState<LeaderboardRow[]>([]);
-
-  const notify = (text: string) => { setMessage(text); window.setTimeout(() => setMessage(''), 3500); };
-  const loadBoard = async () => { try { const r = await fetch('/api/creator?action=leaderboard', { cache: 'no-store' }); const d = await r.json(); setBoard(Array.isArray(d.leaderboard) ? d.leaderboard : []); } catch { setBoard([]); } };
-
-  async function signInOrCreate(create: boolean) {
-    if (email.trim().toLowerCase() !== CREATOR_EMAIL) return notify(`Creator chỉ dùng tài khoản ${CREATOR_EMAIL}.`);
-    if (!password) return notify('Hãy tự tạo/nhập mật khẩu cho tài khoản Creator.');
-    setBusy(true);
-    try {
-      const session = await authPassword(email.trim(), password, create);
-      if (!session?.access_token) return notify(create ? 'Tài khoản đã tạo. Hãy xác nhận email nếu Supabase yêu cầu, rồi đăng nhập.' : 'Không nhận được phiên đăng nhập.');
-      const checked = await creatorApi({ action: 'creator-session' }, session.access_token);
-      if (!checked.data?.ok) return notify('Email này chưa được cấp quyền Creator.');
-      setToken(session.access_token); setLogged(true); await loadBoard(); notify(create ? '✓ Tạo tài khoản Creator thành công.' : '✓ Creator đăng nhập thành công.');
-    } catch (e: any) { notify(e?.message || 'Không thể đăng nhập.'); }
-    finally { setBusy(false); }
-  }
-
-  async function resolveUser() {
-    if (!target.trim()) return notify('Nhập username Roblox.');
-    setBusy(true);
-    try { const r = await creatorApi({ action: 'resolve', username: target.trim() }); if (!r.data?.ok) return notify('Không tìm thấy username Roblox.'); setUser(r.data.user); }
-    finally { setBusy(false); }
-  }
-
-  async function recordDonation() {
-    if (!user) return; const robux = Number(amount);
-    if (!Number.isInteger(robux) || robux <= 0) return notify('Nhập số Robux donate hợp lệ.');
-    setBusy(true);
-    try { const r = await creatorApi({ action: 'record-donation-auth', userId: user.id, username: user.name, amount: robux, note }, token); if (!r.data?.ok) return notify(r.data?.error || 'Không ghi nhận donation.'); setAmount(''); setNote(''); await loadBoard(); notify(`✓ Đã xác nhận ${robux} Robux của ${user.name}.`); }
-    finally { setBusy(false); }
-  }
-
-  async function grantPlus() {
-    if (!user) return; setBusy(true);
-    try { const r = await creatorApi({ action: 'grant-auth', username: user.name }, token); if (!r.data?.ok) return notify(r.data?.error === 'donation_required' ? 'Chưa có donation được Creator xác nhận.' : r.data?.error || 'Không cấp Plus được.'); await loadBoard(); notify(`✓ Đã cấp RBLXFinder Plus cho ${user.name}.`); }
-    finally { setBusy(false); }
-  }
-
-  const css = `*{box-sizing:border-box}body{margin:0}main{min-height:100vh;padding:22px;background:radial-gradient(circle at 10% 0,#e8e4ff,transparent 35%),#f7f8fc;color:#151622;font-family:Inter,system-ui,sans-serif}.wrap{max-width:940px;margin:auto}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}.brand{font-size:27px;font-weight:950}.muted{color:#717589}.card{background:#fff;border:1px solid #e7e7ef;border-radius:22px;padding:22px;margin-top:16px;box-shadow:0 15px 50px #22205a12}.input{width:100%;padding:13px;border:1px solid #d9d9e5;border-radius:12px;margin:7px 0 12px;font:inherit}.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer;background:#181827;color:#fff}.btn:disabled{opacity:.6;cursor:not-allowed}.primary{background:linear-gradient(135deg,#5b4bd6,#9b6cff)}.profile{background:#faf9ff;border-radius:15px;padding:14px;margin-top:14px}.rank{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #eee}.msg{position:fixed;z-index:20;bottom:20px;left:50%;transform:translateX(-50%);background:#171722;color:#fff;padding:12px 18px;border-radius:999px;font-weight:800;max-width:calc(100vw - 28px);text-align:center}@media(max-width:650px){main{padding:14px}.card{padding:17px;border-radius:18px}}`;
-
-  if (!logged) return <main><style>{css}</style><div className="wrap"><div className="brand">👑 RBLXFinder Creator</div><div className="muted">Creator access is tied to your Noobie Google/email account.</div><section className="card"><h2>Creator Account</h2><p>Creator email: <b>{CREATOR_EMAIL}</b></p><p className="muted">Hãy dùng đúng email này. Bạn tự tạo mật khẩu khi đăng ký tài khoản; không cần biết mật khẩu Creator cũ.</p><input className="input" value={email} onChange={e=>setEmail(e.target.value)} type="email" placeholder="Email Creator"/><input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Mật khẩu bạn tự tạo" autoComplete="new-password"/><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="btn primary" disabled={busy} onClick={()=>signInOrCreate(false)}>Đăng nhập Creator</button><button className="btn" disabled={busy} onClick={()=>signInOrCreate(true)}>Tạo tài khoản Creator</button></div><p className="muted" style={{fontSize:13}}>Sau khi tài khoản {CREATOR_EMAIL} đăng nhập thành công, hệ thống tự nhận quyền Creator.</p></section></div>{message&&<div className="msg">{message}</div>}</main>;
-
-  return <main><style>{css}</style><div className="wrap"><div className="top"><div><div className="brand">👑 Creator Dashboard</div><div className="muted">{CREATOR_EMAIL} · Donation → Plus management</div></div><button className="btn" onClick={()=>{setLogged(false);setToken('');setPassword('');setUser(null)}}>Đăng xuất</button></div><section className="card"><h2>💎 Xác nhận donation & cấp Plus</h2><p className="muted">Người dùng phải donate Robux cho <b>{CREATOR}</b>. Creator xác nhận số Robux đã nhận, sau đó mới cấp Plus.</p><input className="input" value={target} onChange={e=>setTarget(e.target.value)} placeholder="Roblox username đã donate"/><button className="btn" disabled={busy} onClick={resolveUser}>{busy?'Đang tìm...':'Tìm tài khoản'}</button>{user&&<div className="profile"><b>{user.name}</b>{user.displayName&&user.displayName!==user.name&&<div className="muted">Display Name: {user.displayName}</div>}<div className="muted">User ID: {user.id}</div><input className="input" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Số Robux đã donate" inputMode="numeric"/><input className="input" value={note} onChange={e=>setNote(e.target.value)} placeholder="Ghi chú (không bắt buộc)"/><button className="btn" disabled={busy} onClick={recordDonation}>✓ Xác nhận donation</button><button className="btn primary" disabled={busy} onClick={grantPlus} style={{marginLeft:8}}>⭐ Cấp Plus</button></div>}</section><section className="card"><h2>🏆 Bảng xếp hạng Donate</h2>{board.length?board.map((row,i)=><div className="rank" key={row.roblox_user_id}><span><b>#{i+1}</b> &nbsp;{row.roblox_username}</span><b>{row.total_robux} Robux</b></div>):<p className="muted">Chưa có donation.</p>}</section></div>{message&&<div className="msg">{message}</div>}</main>;
+type Target={user_id:string;username:string;display_name:string;is_verified:boolean;verified_badge?:string|null};
+const SB=process.env.NEXT_PUBLIC_SUPABASE_URL||'https://mbsnpcdmenfufhbctoek.supabase.co';
+const KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
+const CREATOR_EMAIL='giakiet0903dz@gmail.com',RB_CREATOR='khoungbell7777',FF_CREATOR='2035971642',SUPPORT='supportrobloxfinder@gmail.com';
+const headers=(token?:string)=>({apikey:KEY,Authorization:`Bearer ${token||KEY}`,'Content-Type':'application/json'});
+async function auth(email:string,password:string,signup=false){const r=await fetch(`${SB}/auth/v1/${signup?'signup':'token?grant_type=password'}`,{method:'POST',headers:headers(),body:JSON.stringify({email,password})});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error_description||d.msg||'Không thể xác thực.');return d}
+async function api(body:Record<string,unknown>,token:string){const r=await fetch('/api/creator',{method:'POST',headers:headers(token),body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||d.message||'Creator API error');return d}
+export default function CreatorPage(){
+ const[email,setEmail]=useState(CREATOR_EMAIL),[password,setPassword]=useState(''),[token,setToken]=useState(''),[logged,setLogged]=useState(false),[query,setQuery]=useState(''),[targets,setTargets]=useState<Target[]>([]),[game,setGame]=useState('both'),[note,setNote]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+ const notify=(x:string)=>{setMsg(x);setTimeout(()=>setMsg(''),3200)};
+ const enter=async(signup:boolean)=>{if(email.trim().toLowerCase()!==CREATOR_EMAIL)return notify(`Chỉ tài khoản ${CREATOR_EMAIL} được làm Creator.`);if(password.length<6)return notify('Mật khẩu tối thiểu 6 ký tự.');setBusy(true);try{const s=await auth(email.trim(),password,signup);if(!s.access_token)return notify('Tài khoản đã tạo. Hãy xác nhận email nếu Supabase yêu cầu rồi đăng nhập.');const d=await api({action:'creator-session'},s.access_token);if(!d.ok)throw Error('Email chưa được cấp quyền Creator.');setToken(s.access_token);setLogged(true);notify('✓ Creator đăng nhập thành công.')}catch(e:any){notify(e.message||'Đăng nhập thất bại.')}finally{setBusy(false)}};
+ const search=async()=>{if(!query.trim())return;setBusy(true);try{const d=await api({action:'creator-search',query:query.trim()},token);setTargets(d.targets||[]);if(!d.targets?.length)notify('Không tìm thấy tài khoản.')}catch(e:any){notify(e.message||'Không thể tìm tài khoản.')}finally{setBusy(false)}};
+ const verify=async(t:Target)=>{setBusy(true);try{const d=await api({action:'verify-profile',targetUserId:t.user_id,game,badge:'blue_creator',note},token);if(!d.ok)throw Error(d.error||'Không thể cấp tích xanh');setTargets(x=>x.map(v=>v.user_id===t.user_id?{...v,is_verified:true,verified_badge:'blue_creator'}:v));notify(`✓ Đã cấp tích xanh RBLXFinder cho @${t.username}.`)}catch(e:any){notify(e.message||'Không thể cấp tích xanh.')}finally{setBusy(false)}};
+ const revoke=async(t:Target)=>{setBusy(true);try{const d=await api({action:'revoke-profile',targetUserId:t.user_id,note},token);if(!d.ok)throw Error(d.error||'Không thể gỡ');setTargets(x=>x.map(v=>v.user_id===t.user_id?{...v,is_verified:false,verified_badge:null}:v));notify(`Đã gỡ tích xanh khỏi @${t.username}.`)}catch(e:any){notify(e.message||'Không thể gỡ tích xanh.')}finally{setBusy(false)}};
+ const css=`*{box-sizing:border-box}main{min-height:100vh;background:linear-gradient(180deg,#f6f9ff,#fff);color:#101828;padding:26px 18px;font-family:Inter,system-ui,sans-serif}.wrap{max-width:1100px;margin:auto}.top{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}.brand{font-size:30px;font-weight:950}.muted{color:#667085;line-height:1.55}.card{background:#fff;border:1px solid #e4e9f2;border-radius:24px;padding:22px;margin-top:16px;box-shadow:0 16px 55px #17315d12}.creatorGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.creator{padding:18px;border-radius:20px;background:linear-gradient(135deg,#f8fbff,#eef5ff);border:1px solid #dce9ff}.creator h3{margin:0 0 6px}.verified{display:inline-flex;align-items:center;gap:6px;color:#1677ff;font-weight:950}.check{width:21px;height:21px;border-radius:50%;display:inline-grid;place-items:center;background:#1684ff;color:#fff;font-size:13px}.input{width:100%;padding:13px 14px;border:1px solid #d9e0eb;border-radius:13px;margin:7px 0;font:inherit;background:#fff}.btn{border:0;border-radius:13px;padding:12px 16px;font-weight:900;cursor:pointer;background:#111827;color:#fff}.primary{background:linear-gradient(135deg,#1463ff,#22b4ff)}.danger{background:#fff0f2;color:#c01d3d;border:1px solid #ffd0d8}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.target{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid #e7ecf4;border-radius:16px;margin-top:9px}.targetInfo{min-width:0}.targetInfo b{display:block}.badge{font-size:11px;font-weight:900;color:#1677ff}.msg{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;background:#111827;color:#fff;padding:12px 18px;border-radius:999px;font-weight:850;box-shadow:0 14px 40px #0003;max-width:calc(100vw - 28px);text-align:center}@media(max-width:720px){main{padding:16px 12px}.creatorGrid{grid-template-columns:1fr}.brand{font-size:24px}.card{padding:17px;border-radius:19px}.target{align-items:flex-start;flex-direction:column}}`;
+ if(!logged)return <main><style>{css}</style><div className="wrap"><div className="brand">👑 RBLXFinder Creator Center</div><p className="muted">Tài khoản Creator dùng email Google/email <b>{CREATOR_EMAIL}</b>. Bạn tự đặt mật khẩu khi tạo tài khoản.</p><section className="card"><h2>Đăng nhập Creator</h2><input className="input" value={email} onChange={e=>setEmail(e.target.value)} type="email"/><input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Mật khẩu tự tạo"/><div className="row"><button className="btn primary" disabled={busy} onClick={()=>enter(false)}>Đăng nhập</button><button className="btn" disabled={busy} onClick={()=>enter(true)}>Tạo tài khoản</button></div></section><section className="card"><h2>Hai Creator được quản lý</h2><div className="creatorGrid"><div className="creator"><h3>🎮 Roblox Creator</h3><div className="verified"><span className="check">✓</span> Creator đã xác minh</div><p className="muted">Username: <b>{RB_CREATOR}</b></p></div><div className="creator"><h3>🔥 Free Fire Creator</h3><div className="verified"><span className="check">✓</span> Creator đã xác minh</div><p className="muted">Creator ID: <b>{FF_CREATOR}</b></p></div></div></section></div>{msg&&<div className="msg">{msg}</div>}</main>;
+ return <main><style>{css}</style><div className="wrap"><div className="top"><div><div className="brand">👑 Creator Dashboard</div><div className="muted">{CREATOR_EMAIL} · Roblox + Free Fire</div></div><button className="btn" onClick={()=>{setLogged(false);setToken('');setPassword('')}}>Đăng xuất</button></div><section className="card"><h2>🔎 Tìm tài khoản để quản lý</h2><div className="row"><input className="input" style={{flex:1,minWidth:220}} value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()} placeholder="Username RBLXFinder..."/><button className="btn primary" onClick={search} disabled={busy}>Tìm</button></div><div className="row" style={{marginTop:6}}><select className="input" style={{maxWidth:220}} value={game} onChange={e=>setGame(e.target.value)}><option value="both">Roblox + Free Fire</option><option value="roblox">Roblox</option><option value="freefire">Free Fire</option></select><input className="input" style={{flex:1}} value={note} onChange={e=>setNote(e.target.value)} placeholder="Ghi chú cấp/gỡ tích xanh"/></div>{targets.map(t=><div className="target" key={t.user_id}><div className="targetInfo"><b>{t.display_name||t.username} @{t.username}</b><span className="muted">{t.user_id}</span>{t.is_verified&&<span className="badge">✓ Tích xanh RBLXFinder · {t.verified_badge||'blue_creator'}</span>}</div><div className="row">{t.is_verified?<button className="btn danger" disabled={busy} onClick={()=>revoke(t)}>Gỡ tích xanh</button>:<button className="btn primary" disabled={busy} onClick={()=>verify(t)}>✓ Cấp tích xanh</button>}</div></div>)}</section><section className="card"><h2>💎 Roblox Plus</h2><p className="muted">Quy trình vẫn giữ nguyên: người dùng donate cho <b>{RB_CREATOR}</b>, Creator xác nhận donation thủ công, sau đó mới cấp Plus.</p><a className="btn primary" href="/plus/">Mở Roblox Plus →</a></section><section className="card"><h2>🔥 Free Fire Creator</h2><p className="muted">Creator ID: <b>{FF_CREATOR}</b> · dùng cho hệ thống donate/Creator của Free Fire.</p></section><section className="card"><h2>✉️ Support & Feedback</h2><p className="muted">Mọi feedback hỗ trợ gửi về <b>{SUPPORT}</b>.</p><a className="btn" href={`mailto:${SUPPORT}?subject=RBLXFinder%20Feedback`}>Gửi feedback</a></section></div>{msg&&<div className="msg">{msg}</div>}</main>;
 }
