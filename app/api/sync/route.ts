@@ -1,0 +1,54 @@
+'use server';
+import { NextRequest, NextResponse } from 'next/server';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mbsnpcdmenfufhbctoek.supabase.co';
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rwwoH9hpk6cg3woGveNObw_C00pNZsx';
+
+function out(data: unknown, status = 200) {
+  return NextResponse.json(data, { status, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'POST, OPTIONS' } });
+}
+
+export async function OPTIONS() { return out(null, 204); }
+
+async function currentUser(token: string) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` },
+    cache: 'no-store'
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d?.id) throw new Error('AUTH_REQUIRED');
+  return d;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return out({ error: 'AUTH_REQUIRED' }, 401);
+    const user = await currentUser(token);
+    const body = await req.json().catch(() => ({}));
+    const action = body.action;
+    const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Prefer: 'return=representation' };
+
+    if (action === 'load') {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rblxfinder_user_data?user_id=eq.${encodeURIComponent(user.id)}&select=user_id,data,updated_at&limit=1`, { headers, cache: 'no-store' });
+      const d = await r.json().catch(() => []);
+      if (!r.ok) return out({ error: d?.message || 'SYNC_LOAD_FAILED' }, 502);
+      return out({ ok: true, user: { id: user.id, email: user.email }, data: d?.[0]?.data || {}, updatedAt: d?.[0]?.updated_at || null });
+    }
+
+    if (action === 'save') {
+      const data = body.data && typeof body.data === 'object' ? body.data : {};
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rblxfinder_user_data`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ user_id: user.id, data, updated_at: new Date().toISOString() })
+      });
+      const d = await r.json().catch(() => []);
+      if (!r.ok) return out({ error: d?.message || 'SYNC_SAVE_FAILED' }, 502);
+      return out({ ok: true, user: { id: user.id, email: user.email }, data: d?.[0]?.data || data, updatedAt: d?.[0]?.updated_at || new Date().toISOString() });
+    }
+
+    return out({ error: 'UNKNOWN_ACTION' }, 400);
+  } catch (e) {
+    return out({ error: e instanceof Error ? e.message : 'SYNC_FAILED' }, 500);
+  }
+}
